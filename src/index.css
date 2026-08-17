@@ -1,0 +1,263 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* Simba AI's own faces. Sora for anything the user reads as a heading,
+   Inter at 300 for body, Space Mono for labels, JetBrains for code. */
+@import "@fontsource/sora/400.css";
+@import "@fontsource/sora/600.css";
+@import "@fontsource/sora/700.css";
+@import "@fontsource/inter/300.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/space-mono/400.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
+@import "katex/dist/katex.min.css";
+@import "highlight.js/styles/github-dark.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: 'Sora', sans-serif;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --font-label: 'Space Mono', monospace;
+
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+
+    /* Simba-specific, exposed to Tailwind so components can use them */
+    --color-purple: var(--purple);
+    --color-purple-2: var(--purple-2);
+    --color-purple-3: var(--purple-3);
+    --color-indigo: var(--indigo);
+    --color-teal: var(--teal);
+    --color-amber: var(--amber);
+    --color-dim: var(--dim);
+
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* ===================================================================
+   Dark only, as in both existing apps. Simba AI's palette over a
+   near-black backdrop rather than its bright landing gradient.
+   =================================================================== */
+:root {
+    --background:         #0a0a0f;
+    --foreground:         #f1f5f9;
+    --card:               rgba(255, 255, 255, 0.04);
+    --card-foreground:    #f1f5f9;
+    --popover:            #14141c;
+    --popover-foreground: #f1f5f9;
+    --primary:            #7c3aed;
+    --primary-foreground: #ffffff;
+    --secondary:          rgba(255, 255, 255, 0.06);
+    --secondary-foreground: #f1f5f9;
+    --muted:              rgba(255, 255, 255, 0.04);
+    --muted-foreground:   rgba(255, 255, 255, 0.45);
+    --accent:             rgba(255, 255, 255, 0.07);
+    --accent-foreground:  #f1f5f9;
+    --destructive:        #f0959d;
+    --border:             rgba(255, 255, 255, 0.08);
+    --input:              rgba(0, 0, 0, 0.32);
+    --ring:               rgba(167, 139, 250, 0.35);
+    --radius:             0.9rem;
+
+    --sidebar:                    rgba(15, 23, 42, 0.72);
+    --sidebar-foreground:         #f1f5f9;
+    --sidebar-primary:            #7c3aed;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent:             rgba(255, 255, 255, 0.06);
+    --sidebar-accent-foreground:  #f1f5f9;
+    --sidebar-border:             rgba(255, 255, 255, 0.08);
+    --sidebar-ring:               rgba(167, 139, 250, 0.35);
+
+    --dim:       rgba(255, 255, 255, 0.20);
+    --border-hi: rgba(255, 255, 255, 0.15);
+    --purple:    #7c3aed;
+    --purple-2:  #a78bfa;
+    --purple-3:  #c4b5fd;
+    --indigo:    #4f46e5;
+    --indigo-2:  #6366f1;
+    --gradient:  linear-gradient(135deg, #7c3aed, #4f46e5);
+
+    /* Content classifiers, reserved — never chrome */
+    --teal:  #5eead4;
+    --amber: #fcd34d;
+
+    /* Diff tints, from the agent's tui.js so terminal and desktop match */
+    --added-bg:   #12301c;
+    --added-fg:   #87dfa4;
+    --removed-bg: #3a151b;
+    --removed-fg: #f0959d;
+
+    --chart-1: #a78bfa;
+    --chart-2: #6366f1;
+    --chart-3: #c4b5fd;
+    --chart-4: #4f46e5;
+    --chart-5: #7c3aed;
+}
+
+@layer base {
+    * { @apply border-border; }
+
+    html, body, #root {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+    }
+
+    body {
+        @apply bg-background text-foreground font-sans;
+        font-weight: 300;
+        -webkit-font-smoothing: antialiased;
+        overscroll-behavior: none;
+    }
+
+    /* Faint purple bloom so near-black does not read as flat grey */
+    body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background:
+            radial-gradient(720px 420px at 12% -8%, rgba(124, 58, 237, 0.16), transparent 62%),
+            radial-gradient(620px 380px at 88% 104%, rgba(79, 70, 229, 0.13), transparent 62%);
+    }
+
+    h1, h2, h3, h4 { font-family: var(--font-heading); letter-spacing: -0.03em; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.32); }
+
+    /* Nothing in a desktop app should be text-selectable by default except
+       content the user might copy. */
+    button, [role="button"] { user-select: none; }
+}
+
+@layer components {
+    .mono-label {
+        font-family: var(--font-label);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 10px;
+    }
+
+    /* Simba AI's glass recipe, one class so every panel matches */
+    .glass {
+        background: var(--card);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--border);
+    }
+}
+
+/* ===================================================================
+   Rendered assistant markdown
+   =================================================================== */
+.prose-simba { font-size: 15px; line-height: 1.7; }
+.prose-simba > :last-child { margin-bottom: 0; }
+.prose-simba h1,
+.prose-simba h2,
+.prose-simba h3 { font-family: var(--font-heading); font-weight: 600; letter-spacing: -0.02em; margin: 1.5em 0 0.5em; }
+.prose-simba h1 { font-size: 21px; }
+.prose-simba h2 { font-size: 18px; }
+.prose-simba h3 { font-size: 15.5px; }
+.prose-simba p { margin: 0 0 1em; }
+.prose-simba ul,
+.prose-simba ol { margin: 0 0 1em; padding-left: 1.35em; }
+.prose-simba ul { list-style: disc; }
+.prose-simba ol { list-style: decimal; }
+.prose-simba li { margin-bottom: 0.45em; }
+.prose-simba li::marker { color: var(--purple-2); }
+.prose-simba strong { font-weight: 600; color: #fff; }
+.prose-simba a { color: var(--purple-2); text-decoration: underline; text-underline-offset: 2px; }
+.prose-simba blockquote { margin: 0 0 1em; padding: 2px 0 2px 15px; border-left: 2px solid var(--purple); color: var(--muted-foreground); }
+.prose-simba hr { border: none; border-top: 1px solid var(--border); margin: 1.6em 0; }
+.prose-simba table { width: 100%; border-collapse: collapse; margin: 0 0 1em; font-size: 13.5px; }
+.prose-simba th,
+.prose-simba td { border: 1px solid var(--border); padding: 8px 11px; text-align: left; }
+.prose-simba th { background: var(--card); font-weight: 600; }
+
+.prose-simba :not(pre) > code {
+    background: rgba(167, 139, 250, 0.12);
+    color: var(--purple-2);
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.87em;
+}
+
+.code-block {
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) + 0.3rem);
+    overflow: hidden;
+    margin: 0 0 1.2em;
+    background: rgba(0, 0, 0, 0.42);
+}
+.code-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 9px 8px 15px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+}
+.code-lang {
+    font-family: var(--font-label);
+    font-size: 10px;
+    color: var(--teal);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+.code-block pre { margin: 0; padding: 14px 16px; overflow-x: auto; }
+.code-block code {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    background: none !important;
+    padding: 0 !important;
+}
+.katex { font-size: 1.03em; }
+.katex-display { margin: 1.1em 0; overflow-x: auto; overflow-y: hidden; }

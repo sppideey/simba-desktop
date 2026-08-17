@@ -1,0 +1,4 @@
+# Build artifacts live on D:. The Rust target directory for a Tauri app runs to
+# several GB, and C: does not have room for it.
+[build]
+target-dir = "D:/simba-build/simba-desktop"

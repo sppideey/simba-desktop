@@ -1,0 +1,70 @@
+{
+    "$schema":  "../node_modules/@tauri-apps/cli/config.schema.json",
+    "productName":  "Simba",
+    "version":  "0.1.0",
+    "identifier":  "com.omdixit.simba",
+    "build":  {
+                  "frontendDist":  "../dist",
+                  "devUrl":  "http://localhost:1420",
+                  "beforeDevCommand":  "pnpm dev",
+                  "beforeBuildCommand":  "pnpm build"
+              },
+    "app":  {
+                "windows":  [
+                                {
+                                    "title":  "Simba",
+                                    "width":  1200,
+                                    "height":  800,
+                                    "minWidth":  900,
+                                    "minHeight":  600,
+                                    "resizable":  true,
+                                    "fullscreen":  false,
+                                    "theme":  "Dark"
+                                }
+                            ],
+                "security":  {
+                                 "csp":  null
+                             }
+            },
+    "bundle":  {
+                   "active":  true,
+                   "targets":  [
+                                   "nsis",
+                                   "msi"
+                               ],
+                   "publisher":  "Om Dixit",
+                   "copyright":  "© Om Dixit",
+                   "shortDescription":  "Chat and Code, in one app",
+                   "longDescription":  "Simba Desktop — Simba AI for conversation and Simba Agent for code, in a single window.",
+                   "resources":  [
+                                     "sidecar-dist/**/*"
+                                 ],
+                   "windows":  {
+                                   "webviewInstallMode":  {
+                                                              "type":  "embedBootstrapper"
+                                                          }
+                               },
+                   "icon":  [
+                                "icons/32x32.png",
+                                "icons/128x128.png",
+                                "icons/128x128@2x.png",
+                                "icons/icon.icns",
+                                "icons/icon.ico"
+                            ],
+                   "android":  {
+                                   "debugApplicationIdSuffix":  ".debug"
+                               },
+                   "createUpdaterArtifacts":  true
+               },
+    "plugins":  {
+                    "updater":  {
+                                    "pubkey":  "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVEQTU4RUVBQUJCQzBDMjAKUldRZ0RMeXI2bzZsWFFNbzBCQThNUVZVUUR1eUd5aG12ZGhCc1U2NFZBWmRKZ1puaklQSGw3WkMK",
+                                    "endpoints":  [
+                                                      "https://github.com/sppideey/simba-desktop/releases/latest/download/latest.json"
+                                                  ],
+                                    "windows":  {
+                                                    "installMode":  "passive"
+                                                }
+                                }
+                }
+}
