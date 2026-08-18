@@ -75,6 +75,29 @@ fn sidecar_script() -> Result<std::path::PathBuf, String> {
     Err("the agent sidecar was not found next to the app".into())
 }
 
+/// The Node binary to run the agent with.
+///
+/// A copy ships inside the installer, so Code mode works on a machine that has
+/// never had Node installed. The bundled one is preferred over whatever is on
+/// PATH: it is a known version, and it cannot be shadowed by something older.
+/// Falling back to "node" keeps `pnpm app` working in development, where
+/// nothing has been staged yet.
+fn node_binary() -> std::path::PathBuf {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            for candidate in [
+                dir.join("sidecar-dist").join("node.exe"),
+                dir.join("resources").join("sidecar-dist").join("node.exe"),
+            ] {
+                if candidate.exists() {
+                    return candidate;
+                }
+            }
+        }
+    }
+    std::path::PathBuf::from("node")
+}
+
 /// Start the sidecar for one project folder.
 ///
 /// `on_event` receives every line the agent emits, verbatim, so the front end
@@ -91,7 +114,7 @@ fn agent_start(
 
     let script = sidecar_script()?;
 
-    let mut command = Command::new("node");
+    let mut command = Command::new(node_binary());
     command
         .arg(&script)
         .arg(&cwd)
@@ -109,7 +132,7 @@ fn agent_start(
     command.creation_flags(CREATE_NO_WINDOW);
 
     let mut child = command.spawn().map_err(|e| {
-        format!("Could not start the agent: {e}. Node.js 22 or newer must be installed.")
+        format!("Could not start the agent: {e}")
     })?;
 
     let stdout = child.stdout.take().ok_or("the agent produced no stdout")?;
@@ -161,7 +184,7 @@ fn agent_stop(state: State<'_, Agent>) -> Result<(), String> {
 /// Whether Node is present, so Code mode can explain itself instead of failing.
 #[tauri::command]
 fn node_version() -> Option<String> {
-    let mut command = Command::new("node");
+    let mut command = Command::new(node_binary());
     command.arg("--version");
     #[cfg(windows)]
     command.creation_flags(CREATE_NO_WINDOW);
