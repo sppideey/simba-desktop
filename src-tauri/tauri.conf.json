@@ -58,7 +58,7 @@
                },
     "plugins":  {
                     "updater":  {
-                                    "pubkey":  "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVEQTU4RUVBQUJCQzBDMjAKUldRZ0RMeXI2bzZsWFFNbzBCQThNUVZVUUR1eUd5aG12ZGhCc1U2NFZBWmRKZ1puaklQSGw3WkMK",
+                                    "pubkey":  "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFCNDJBQjY5ODM1MDJCQkYKUldTL0sxQ0RhYXRDcXdQQlFoUWtseGdhUUhIYXBGbUxuWHBKZ2NNb1pBSVdtbC9PSU9UcU8rdmcK",
                                     "endpoints":  [
                                                       "https://github.com/sppideey/simba-desktop/releases/latest/download/latest.json"
                                                   ],

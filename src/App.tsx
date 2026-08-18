@@ -10,6 +10,9 @@ import { useEffect } from 'react';
 import { PanelLeft } from 'lucide-react';
 import { Toaster } from 'sonner';
 
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
+
 import { useApp, useChat, useCode } from '@/store';
 import { Sidebar } from '@/components/Sidebar';
 import { ChatView } from '@/components/ChatView';
@@ -37,6 +40,48 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [toggleSidebar, setSettingsOpen]);
+
+  /**
+   * Update on launch, quietly.
+   *
+   * A "Check for updates" button in Settings is a button nobody presses, so
+   * the check runs once on start instead. Installing needs a relaunch, which
+   * would be rude mid-sentence — so it waits until the app is idle and the
+   * user is not partway through a conversation.
+   *
+   * Failure is deliberately silent: no network, or GitHub being down, is not
+   * something to interrupt someone's work over.
+   */
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const update = await check();
+        if (!update || cancelled) return;
+
+        const idle = () =>
+          !useChat.getState().busy &&
+          !useCode.getState().busy &&
+          useChat.getState().streaming === null;
+
+        // Wait for a natural pause rather than yanking the window away.
+        for (let waited = 0; waited < 60 && !idle(); waited++) {
+          await new Promise((r) => setTimeout(r, 1000));
+          if (cancelled) return;
+        }
+        if (cancelled || !idle()) return;
+
+        await update.downloadAndInstall();
+        await relaunch();
+      } catch {
+        /* offline, or not a packaged build — nothing worth saying */
+      }
+    };
+
+    const timer = setTimeout(run, 4000); // let the window settle first
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, []);
 
   const activeChat = chat.chats.find((c) => c.id === chat.currentId) ?? null;
   const activeProject = code.projects.find((p) => p.id === code.currentId) ?? null;
