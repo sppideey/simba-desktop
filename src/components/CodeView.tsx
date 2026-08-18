@@ -36,32 +36,46 @@ const SUBLINE = (() => {
 
 /* ------------------------------------------------------------------ rows */
 
+/**
+ * A diff, in the shape Claude Code uses: a dim line-number gutter, then the
+ * sign and the code tinted across the whole row, so the shape of the edit
+ * reads at a glance rather than as two loose coloured strings.
+ *
+ * The tints are the agent's own, from tui.js, so the terminal and the desktop
+ * show the same change the same way.
+ */
 function Diff({ lines }: { lines: string[] }) {
   return (
-    <div className="my-2.5 overflow-hidden rounded-xl border border-border font-mono text-xs">
+    <div className="my-2 ml-[17px] overflow-hidden rounded-lg border border-border font-mono text-[11.5px] leading-[1.6]">
       {lines.map((raw, i) => {
         const added = raw.startsWith('+');
         const rest = raw.slice(1);
         const m = /^(\d+)\|\s?([\s\S]*)$/.exec(rest);
+
+        // The trailing "… 12 more lines" note has no line number and is not
+        // part of the change, so it stays untinted.
         if (!m) {
           return (
             <div key={i} className="flex">
-              <span className="w-12 shrink-0" />
-              <span className="flex-1 px-3 py-0.5 text-dim">{rest}</span>
+              <span className="w-11 shrink-0" />
+              <span className="flex-1 px-2.5 py-px text-dim opacity-70">{rest}</span>
             </div>
           );
         }
         return (
           <div key={i} className="flex">
-            <span className="w-12 shrink-0 py-0.5 pr-2.5 text-right text-dim">{m[1]}</span>
+            <span className="w-11 shrink-0 py-px pr-2 text-right text-dim opacity-60 select-none">
+              {m[1]}
+            </span>
             <span
-              className="flex-1 overflow-x-auto px-3 py-0.5 whitespace-pre"
+              className="flex-1 overflow-x-auto px-2.5 py-px whitespace-pre"
               style={{
                 background: added ? 'var(--added-bg)' : 'var(--removed-bg)',
                 color: added ? 'var(--added-fg)' : 'var(--removed-fg)',
               }}
             >
-              {added ? '+ ' : '- '}{m[2]}
+              <span className="select-none opacity-70">{added ? '+' : '-'} </span>
+              {m[2]}
             </span>
           </div>
         );
@@ -79,7 +93,71 @@ function Markdown({ text }: { text: string }) {
   return <div ref={ref} className="prose-simba my-3" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-function Row({ item }: { item: TranscriptItem }) {
+/** A run of consecutive reads, collapsed into one line. */
+type ReadGroup = { kind: 'reads'; id: string; items: Extract<TranscriptItem, { kind: 'tool' }>[] };
+type Renderable = TranscriptItem | ReadGroup;
+
+/** Reading tui.js, Reading llm.js, Reading tools.js → "Read 3 files". */
+const READ_LABEL = /^(Reading|Listing|Finding)\b/;
+
+/**
+ * Collapse runs of three or more consecutive reads.
+ *
+ * Below three the individual filenames are more useful than a count; above it
+ * they are just noise scrolling past, and the interesting rows — the edits and
+ * the commands — get lost among them.
+ */
+function groupReads(items: TranscriptItem[]): Renderable[] {
+  const out: Renderable[] = [];
+  let run: Extract<TranscriptItem, { kind: 'tool' }>[] = [];
+
+  const flush = () => {
+    if (run.length >= 3) out.push({ kind: 'reads', id: run[0].id, items: run });
+    else out.push(...run);
+    run = [];
+  };
+
+  for (const item of items) {
+    if (item.kind === 'tool' && READ_LABEL.test(item.label) && !item.failed) {
+      run.push(item);
+      continue;
+    }
+    flush();
+    out.push(item);
+  }
+  flush();
+  return out;
+}
+
+/** Collapsed reads: one line, expandable to the individual files. */
+function ReadGroupRow({ group }: { group: ReadGroup }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mb-1">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-baseline gap-2 text-left text-[13px] transition-opacity hover:opacity-80"
+      >
+        <span className="text-purple-2">●</span>
+        <span>Read {group.items.length} files</span>
+        <span className="text-[11px] text-dim">{open ? 'hide' : 'show'}</span>
+      </button>
+      {open && (
+        <div className="mt-0.5 pl-[17px]">
+          {group.items.map((t) => (
+            <div key={t.id} className="text-[12px] text-dim">
+              {t.label.replace(READ_LABEL, '').trim()}
+              {t.summary && <span className="opacity-60"> · {t.summary}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Row({ item }: { item: Renderable }) {
   switch (item.kind) {
     case 'user':
       return (
@@ -90,19 +168,31 @@ function Row({ item }: { item: TranscriptItem }) {
         </div>
       );
 
+    case 'reads':
+      return <ReadGroupRow group={item} />;
+
+    // Narration and thinking are context, not content: smaller and quieter, so
+    // the eye lands on what the agent did rather than what it said about it.
     case 'narrate':
-      return <div className="mb-1 pl-0.5 text-[13px] text-dim">⋮ {item.text}</div>;
+      return <div className="mb-0.5 pl-0.5 text-[12px] text-dim opacity-70">{item.text}</div>;
+
+    case 'thought':
+      return (
+        <div className="mb-0.5 pl-0.5 text-[12px] text-dim italic opacity-60">
+          Thought for {item.seconds}s
+        </div>
+      );
 
     case 'tool':
       return (
         <div className="mb-1">
           <div className="flex items-baseline gap-2 text-[13px]">
-            <span className="text-purple-2">●</span>
+            <span className={item.failed ? 'text-destructive' : 'text-purple-2'}>●</span>
             <span>{item.label}</span>
           </div>
           {item.summary !== undefined && (
-            <div className={cn('pl-[17px] text-[13px]', item.failed ? 'text-destructive' : 'text-dim')}>
-              └ {item.summary}
+            <div className={cn('pl-[17px] text-[12.5px]', item.failed ? 'text-destructive' : 'text-dim')}>
+              <span className="opacity-70">⎿ </span>{item.summary}
             </div>
           )}
         </div>
@@ -113,18 +203,15 @@ function Row({ item }: { item: TranscriptItem }) {
 
     case 'output':
       return (
-        <div className="mb-2 pl-6">
+        <div className="mb-2 pl-[17px]">
           {item.lines.map((l, i) => (
-            <div key={i} className="font-mono text-xs whitespace-pre-wrap text-dim">{l}</div>
+            <div key={i} className="font-mono text-[11.5px] whitespace-pre-wrap text-dim opacity-80">{l}</div>
           ))}
         </div>
       );
 
-    case 'thought':
-      return <div className="mb-1 pl-0.5 text-[13px] text-dim">⋮ thought for {item.seconds}s</div>;
-
     case 'note':
-      return <div className="mb-1 pl-0.5 text-[13px] text-dim">{item.text}</div>;
+      return <div className="mb-0.5 pl-0.5 text-[12px] text-dim opacity-70">{item.text}</div>;
 
     case 'assistant':
       return <Markdown text={item.text} />;
@@ -387,7 +474,7 @@ export function CodeView() {
             </>
           ) : (
             <div className="pt-6 pb-2">
-              {code.transcript.map((item) => <Row key={item.id} item={item} />)}
+              {groupReads(code.transcript).map((item) => <Row key={item.id} item={item} />)}
               {streamed && (
                 <div className="my-3 text-[15px] leading-relaxed whitespace-pre-wrap">
                   {streamed}

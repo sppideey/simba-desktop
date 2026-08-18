@@ -44,17 +44,19 @@ export const TAVILY_KEY: string = TAVILY_KEY_RAW;
 
 export type ModelInfo = { id: string; label: string; star?: boolean; context: number };
 
-/** The curated nine, mirroring simba-agent/llm.js. */
+/**
+ * Models offered in Code mode.
+ *
+ * Laguna and Gemma were dropped: both sit on heavily shared free pools and
+ * were routinely slower than the wait was worth. What is left is ordered
+ * fastest-first, so the default is the one that answers soonest.
+ */
 export const MODELS: ModelInfo[] = [
-  { id: 'cohere/north-mini-code:free', context: 256_000, star: true, label: 'recommended — built for code and UI work' },
-  { id: 'nvidia/nemotron-3.5-lightning:free', context: 1_000_000, star: true, label: 'recommended — 1M context for long sessions' },
-  { id: 'nvidia/nemotron-3-super-120b-a12b:free', context: 262_144, label: 'strong all-round, quick to answer' },
-  { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', context: 1_000_000, label: 'deepest reasoning, 1M context, ~9s first token' },
-  { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', context: 256_000, label: 'small, omni, reasoning tuned' },
-  { id: 'poolside/laguna-s-2.1:free', context: 262_144, label: 'code specialist, large context' },
-  { id: 'poolside/laguna-xs-2.1:free', context: 262_144, label: 'smaller laguna, fastest to reply' },
-  { id: 'google/gemma-4-31b-it:free', context: 262_144, label: 'open general purpose, often congested' },
-  { id: 'google/gemma-4-26b-a4b-it:free', context: 262_144, label: 'sparse gemma, often congested' },
+  { id: 'nvidia/nemotron-3.5-lightning:free', context: 1_000_000, star: true, label: 'fastest — 1M context, best default' },
+  { id: 'cohere/north-mini-code:free', context: 256_000, star: true, label: 'built for code and UI work' },
+  { id: 'nvidia/nemotron-3-super-120b-a12b:free', context: 262_144, label: 'stronger, still quick to answer' },
+  { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', context: 256_000, label: 'small and reasoning-tuned' },
+  { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', context: 1_000_000, label: 'deepest reasoning — slow first token' },
 ];
 
 export const DEFAULT_MODEL = MODELS[0].id;
