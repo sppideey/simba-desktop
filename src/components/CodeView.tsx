@@ -143,6 +143,29 @@ function Row({ item }: { item: TranscriptItem }) {
   }
 }
 
+/**
+ * Why the composer will not send yet.
+ *
+ * Shown under the box rather than by disabling it: the user can still type,
+ * and a specific reason beats an input that silently does nothing.
+ */
+function AgentStatus() {
+  const running = useCode((s) => s.running);
+  const node = useCode((s) => s.nodeVersion);
+  if (running) return null;
+
+  const reason = node === null
+    ? 'Node.js was not found. Code mode runs the agent as a Node process — install Node 22 or newer and reopen this project.'
+    : 'Starting the agent…';
+
+  return (
+    <p className="pt-2.5 text-center text-[12px] text-dim">
+      {node === null && <span className="text-destructive">Can’t run here. </span>}
+      {reason}
+    </p>
+  );
+}
+
 /* ------------------------------------------------------------------ view */
 
 export function CodeView() {
@@ -339,6 +362,7 @@ export function CodeView() {
                 onStop={() => agent.abort()}
                 onModelChange={(m) => { code.setModel(m); agent.setModel(m); }}
               />
+              <AgentStatus />
 
               <div className="flex flex-wrap justify-center gap-2.5 pt-5">
                 {CODE_SUGGESTIONS.map((s) => (
@@ -397,6 +421,7 @@ export function CodeView() {
               onStop={() => agent.abort()}
               onModelChange={(m) => { code.setModel(m); agent.setModel(m); }}
             />
+            <AgentStatus />
           </div>
         </div>
       )}

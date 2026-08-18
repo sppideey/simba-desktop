@@ -81,8 +81,8 @@ export function Composer({
    * user can keep typing without clicking back into it.
    */
   useEffect(() => {
-    if (!disabled) inputRef.current?.focus();
-  }, [disabled]);
+    inputRef.current?.focus();
+  }, []);
 
   const canSend = !busy && !disabled && (text.trim().length > 0 || attachments.length > 0);
 
@@ -159,11 +159,16 @@ export function Composer({
         </div>
       )}
 
+      {/*
+        Never disabled. The agent may still be starting, or may have failed to
+        start at all, but blocking the keyboard makes the app feel broken and
+        gives the user nowhere to put the thought they already had. They can
+        type; only sending waits, and CodeView says why.
+      */}
       <textarea
         ref={inputRef}
         rows={1}
         value={text}
-        disabled={disabled}
         placeholder={placeholder}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
