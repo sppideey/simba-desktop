@@ -401,6 +401,44 @@ export async function downloadDocx(markdown: string, title: string, host?: HTMLE
     setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
+/**
+ * Turn a whole conversation into revision notes.
+ *
+ * Not a transcript: the questions become headings and the answers become the
+ * body, so it reads as a study sheet rather than a chat log. Charts and graphs
+ * anywhere on screen are captured as images, so a plotted function arrives in
+ * the document as the picture rather than as its JSON.
+ */
+export async function downloadRevisionNotes(
+  messages: Array<{ role: string; content: string }>,
+  title: string,
+  host?: HTMLElement | null,
+) {
+  const parts: string[] = [`# ${title}`, ''];
+
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    if (m.role !== 'user') continue;
+
+    const question = m.content.trim().replace(/\s+/g, ' ');
+    const answer = messages[i + 1]?.role === 'assistant' ? messages[i + 1].content : '';
+    if (!answer.trim()) continue;
+
+    // A heading has to be a line, not a paragraph — long questions get trimmed
+    // for the heading and kept in full underneath.
+    const short = question.length > 90 ? `${question.slice(0, 88)}…` : question;
+    parts.push(`## ${short}`, '');
+    if (question.length > 90) parts.push(`*${question}*`, '');
+    parts.push(unwrapDocxFences(answer).trim(), '');
+  }
+
+  if (parts.length <= 2) {
+    throw new Error('This chat has no answers to write up yet.');
+  }
+
+  await downloadDocx(parts.join('\n'), title, host);
+}
+
 /** Same collector as the web app, but rooted at an element we already hold. */
 function docxCollectChartShotsFrom(host: HTMLElement) {
     const shots = [];

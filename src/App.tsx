@@ -6,11 +6,12 @@
  * nothing up there — no "New chat" label.
  */
 
-import { useEffect } from 'react';
-import { PanelLeft } from 'lucide-react';
-import { Toaster } from 'sonner';
+import { useEffect, useState } from 'react';
+import { PanelLeft, NotebookPen } from 'lucide-react';
+import { Toaster, toast } from 'sonner';
 
 import { lookForUpdate, installUpdate } from '@/lib/updater';
+import { downloadRevisionNotes } from '@/lib/chat/docx';
 
 import { useApp, useChat, useCode } from '@/store';
 import { Sidebar } from '@/components/Sidebar';
@@ -23,6 +24,7 @@ export default function App() {
   const { mode, sidebarOpen, settingsOpen, toggleSidebar, setSettingsOpen } = useApp();
   const chat = useChat();
   const code = useCode();
+  const [writingNotes, setWritingNotes] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -136,6 +138,33 @@ export default function App() {
           )}
         >
           <span className="truncate text-[13px] text-muted-foreground">{paneTitle}</span>
+
+          {/* Revision notes: the whole conversation as a study sheet. */}
+          {mode === 'chat' && (activeChat?.messages.length ?? 0) > 1 && (
+            <button
+              type="button"
+              disabled={writingNotes}
+              onClick={async () => {
+                if (!activeChat) return;
+                setWritingNotes(true);
+                try {
+                  await downloadRevisionNotes(
+                    activeChat.messages,
+                    activeChat.title,
+                    document.querySelector('main') as HTMLElement,
+                  );
+                } catch (err) {
+                  toast(err instanceof Error ? err.message : String(err));
+                } finally {
+                  setWritingNotes(false);
+                }
+              }}
+              className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11.5px] text-muted-foreground transition-colors hover:border-ring hover:text-foreground disabled:opacity-50"
+            >
+              <NotebookPen className="size-3" />
+              {writingNotes ? 'Writing…' : 'Revision notes'}
+            </button>
+          )}
         </div>
 
         {mode === 'chat' ? <ChatView /> : <CodeView />}
