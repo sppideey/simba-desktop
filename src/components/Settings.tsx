@@ -7,11 +7,9 @@
 
 import { useState } from 'react';
 import { ArrowLeft, User, RefreshCw, BookOpen } from 'lucide-react';
-import { check } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
-import { toast } from 'sonner';
 
 import { useApp } from '@/store';
+import { installUpdate, lookForUpdate } from '@/lib/updater';
 import { Input } from '@/components/ui/input';
 import { getVersion } from '@tauri-apps/api/app';
 import { useEffect } from 'react';
@@ -32,60 +30,44 @@ function Card({
   );
 }
 
-/** Version, and the button that pulls the next one down. */
+/**
+ * Version, and the button that pulls the next one down.
+ *
+ * Shares its state with the sidebar pill, so the two can never disagree about
+ * whether an update is waiting.
+ */
 function Version() {
   const [version, setVersion] = useState('');
-  const [state, setState] = useState<'idle' | 'checking' | 'none' | 'installing'>('idle');
-  const [found, setFound] = useState<string | null>(null);
+  const state = useApp((s) => s.updateState);
+  const found = useApp((s) => s.updateVersion);
+  const error = useApp((s) => s.updateError);
 
   useEffect(() => { getVersion().then(setVersion).catch(() => setVersion('')); }, []);
 
-  const act = async () => {
-    if (found) {
-      setState('installing');
-      try {
-        const update = await check();
-        if (update) {
-          await update.downloadAndInstall();
-          await relaunch();
-        }
-      } catch (err) {
-        setState('idle');
-        toast(err instanceof Error ? err.message : String(err));
-      }
-      return;
-    }
-
-    setState('checking');
-    try {
-      const update = await check();
-      if (update) { setFound(update.version); setState('idle'); }
-      else setState('none');
-    } catch {
-      setState('none');   // offline is not worth a scary message
-    }
-  };
+  const busy = state === 'checking' || state === 'installing';
 
   return (
     <Card icon={RefreshCw} title="Version">
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={act}
-          disabled={state === 'checking' || state === 'installing'}
+          onClick={() => void (state === 'ready' ? installUpdate() : lookForUpdate(false))}
+          disabled={busy}
           className="rounded-full bg-[image:var(--gradient)] px-4 py-2 text-xs text-white transition-transform hover:-translate-y-0.5 disabled:opacity-50"
         >
           {state === 'checking' ? 'Checking…'
             : state === 'installing' ? 'Installing…'
-            : found ? `Install ${found}`
+            : state === 'ready' ? `Install ${found}`
             : 'Check for updates'}
         </button>
         <span className="text-[12.5px] text-muted-foreground">
-          {found ? `Version ${found} is ready`
-            : state === 'none' ? `Up to date — ${version}`
+          {state === 'ready' ? `Version ${found} is ready`
             : `Simba ${version}`}
         </span>
       </div>
+      {state === 'error' && error && (
+        <p className="mt-3 text-[12px] leading-relaxed text-destructive">{error}</p>
+      )}
     </Card>
   );
 }

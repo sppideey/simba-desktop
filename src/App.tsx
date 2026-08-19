@@ -8,10 +8,9 @@
 
 import { useEffect } from 'react';
 import { PanelLeft } from 'lucide-react';
-import { Toaster, toast } from 'sonner';
+import { Toaster } from 'sonner';
 
-import { check } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
+import { lookForUpdate, installUpdate } from '@/lib/updater';
 
 import { useApp, useChat, useCode } from '@/store';
 import { Sidebar } from '@/components/Sidebar';
@@ -66,37 +65,27 @@ export default function App() {
 
     const run = async () => {
       if (cancelled || installing) return;
-      try {
-        const update = await check();
-        if (!update || cancelled) return;
 
-        installing = true;
+      const found = await lookForUpdate(true);
+      if (!found || cancelled) return;
 
-        // Give the user up to two minutes to finish what they are doing.
-        for (let waited = 0; waited < 120 && !idle(); waited++) {
-          await new Promise((r) => setTimeout(r, 1000));
-          if (cancelled) return;
-        }
+      // A waiting update is now visible in the sidebar regardless of what
+      // happens next, so even if the silent install fails there is a button.
+      installing = true;
 
-        if (!idle()) {
-          // Still mid-turn. Say so and try again on the next tick rather than
-          // interrupting, or disappearing without explanation.
-          toast(`Simba ${update.version} is ready — it will install when you pause.`);
-          installing = false;
-          return;
-        }
-
-        toast(`Installing Simba ${update.version}…`);
-        await update.downloadAndInstall();
-        await relaunch();
-      } catch (err) {
-        installing = false;
-        // Offline is not worth interrupting anyone over, but a real failure is.
-        const message = err instanceof Error ? err.message : String(err);
-        if (!/network|fetch|connect|dns|timed? ?out/i.test(message)) {
-          console.warn('[updater]', message);
-        }
+      // Give the user up to two minutes to finish what they are doing.
+      for (let waited = 0; waited < 120 && !idle(); waited++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        if (cancelled) return;
       }
+
+      if (!idle()) {
+        installing = false;   // try again on the next tick
+        return;
+      }
+
+      await installUpdate();
+      installing = false;     // only reached if the install failed
     };
 
     const first = setTimeout(run, 4000);           // let the window settle

@@ -171,14 +171,15 @@ function Row({ item }: { item: Renderable }) {
     case 'reads':
       return <ReadGroupRow group={item} />;
 
-    // Narration and thinking are context, not content: smaller and quieter, so
-    // the eye lands on what the agent did rather than what it said about it.
+    // Narration and thinking are context, not content: small and faint enough
+    // to skim past, so the eye lands on what the agent did rather than on what
+    // it said about doing it.
     case 'narrate':
-      return <div className="mb-0.5 pl-0.5 text-[12px] text-dim opacity-70">{item.text}</div>;
+      return <div className="mb-0.5 pl-0.5 text-[11.5px] text-dim opacity-45">{item.text}</div>;
 
     case 'thought':
       return (
-        <div className="mb-0.5 pl-0.5 text-[12px] text-dim italic opacity-60">
+        <div className="mb-0.5 pl-0.5 text-[11.5px] text-dim italic opacity-40">
           Thought for {item.seconds}s
         </div>
       );
@@ -211,7 +212,7 @@ function Row({ item }: { item: Renderable }) {
       );
 
     case 'note':
-      return <div className="mb-0.5 pl-0.5 text-[12px] text-dim opacity-70">{item.text}</div>;
+      return <div className="mb-0.5 pl-0.5 text-[11.5px] text-dim opacity-45">{item.text}</div>;
 
     case 'assistant':
       return <Markdown text={item.text} />;

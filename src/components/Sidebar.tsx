@@ -7,10 +7,11 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   MessageSquare, Terminal, Plus, Settings as SettingsIcon,
-  Pencil, Folder, PanelLeftClose, Trash2,
+  Pencil, Folder, PanelLeftClose, Trash2, ArrowDownToLine,
 } from 'lucide-react';
 
 import { useApp, useChat, useCode, type Chat, type Project } from '@/store';
+import { installUpdate } from '@/lib/updater';
 import { cn } from '@/lib/utils';
 import logo from '@/assets/logo.png';
 
@@ -118,6 +119,53 @@ function Row({ icon, label, active, onOpen, onRename, onDelete }: RowProps) {
 
 function GroupLabel({ children }: { children: React.ReactNode }) {
   return <div className="mono-label px-3 pt-4 pb-1.5 text-dim">{children}</div>;
+}
+
+/**
+ * "New version — click to update", above Settings.
+ *
+ * The app tries to update itself quietly, but a silent mechanism that fails is
+ * invisible, and that has already wasted real time here. This is the honest
+ * fallback: if an update is waiting, you can always see it and always click it.
+ */
+function UpdatePill() {
+  const state = useApp((s) => s.updateState);
+  const version = useApp((s) => s.updateVersion);
+  const error = useApp((s) => s.updateError);
+
+  if (state !== 'ready' && state !== 'installing' && state !== 'error') return null;
+
+  if (state === 'error') {
+    return (
+      <div className="px-2.5 pb-1">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11.5px] leading-snug text-destructive">
+          Update failed. {error}
+        </div>
+      </div>
+    );
+  }
+
+  const busy = state === 'installing';
+  return (
+    <div className="px-2.5 pb-1">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void installUpdate()}
+        className="flex w-full items-center gap-2.5 rounded-xl border border-ring bg-primary/16 px-3 py-2 text-left transition-colors hover:bg-primary/24 disabled:opacity-60"
+      >
+        <ArrowDownToLine className={cn('size-3.5 shrink-0 text-purple-2', busy && 'animate-pulse')} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[12.5px]">
+            {busy ? 'Updating…' : 'New version available'}
+          </span>
+          {!busy && version && (
+            <span className="block text-[11px] text-dim">{version} · click to update</span>
+          )}
+        </span>
+      </button>
+    </div>
+  );
 }
 
 export function Sidebar({ onNew }: { onNew: () => void }) {
@@ -239,6 +287,9 @@ export function Sidebar({ onNew }: { onNew: () => void }) {
           </>
         )}
       </div>
+
+      {/* update pill — only present when there is something to install */}
+      <UpdatePill />
 
       {/* settings */}
       <div className="shrink-0 border-t border-border p-2.5">

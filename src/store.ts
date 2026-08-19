@@ -51,17 +51,26 @@ export const uid = () => `${Date.now().toString(36)}-${(counter++).toString(36)}
 
 /* ------------------------------------------------------------------- app */
 
+/** Where an update has got to. `error` is kept so it can be shown, not hidden. */
+export type UpdateState = 'idle' | 'checking' | 'ready' | 'installing' | 'error';
+
 type AppState = {
   mode: Mode;
   sidebarOpen: boolean;
   settingsOpen: boolean;
   userName: string;
   sendOnEnter: boolean;
+
+  updateState: UpdateState;
+  updateVersion: string | null;
+  updateError: string | null;
+
   setMode: (m: Mode) => void;
   toggleSidebar: () => void;
   setSettingsOpen: (v: boolean) => void;
   setUserName: (v: string) => void;
   setSendOnEnter: (v: boolean) => void;
+  setUpdate: (v: { state: UpdateState; version?: string | null; error?: string | null }) => void;
 };
 
 export const useApp = create<AppState>()(
@@ -72,11 +81,20 @@ export const useApp = create<AppState>()(
       settingsOpen: false,
       userName: '',
       sendOnEnter: true,
+      updateState: 'idle',
+      updateVersion: null,
+      updateError: null,
       setMode: (mode) => set({ mode, settingsOpen: false }),
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
       setUserName: (userName) => set({ userName }),
       setSendOnEnter: (sendOnEnter) => set({ sendOnEnter }),
+      setUpdate: ({ state, version, error }) =>
+        set((s) => ({
+          updateState: state,
+          updateVersion: version === undefined ? s.updateVersion : version,
+          updateError: error === undefined ? s.updateError : error,
+        })),
     }),
     {
       name: 'simba-app',
