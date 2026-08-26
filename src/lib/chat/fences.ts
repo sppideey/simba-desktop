@@ -23,13 +23,18 @@ Chart.register(...registerables);
 // applyChartTheme() reads window.Chart, as it did in the browser build.
 (window as unknown as { Chart: unknown }).Chart = Chart;
 
-/** Chart.js is a real dependency here, so there is nothing to lazy-load. */
-async function ensureChartJs() { return Chart; }
-
-function escapeHtml(str) {
-    return String(str == null ? '' : str)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+/**
+ * Chart.js is a real dependency here, so there is nothing to lazy-load — but
+ * the theme still has to be applied.
+ *
+ * In the browser build this ran once the CDN script landed. Dropping it left
+ * charts using Chart.js's stock near-black text and gridlines, which is close
+ * to invisible on this background. applyChartTheme guards itself with
+ * `_simbaThemed`, so calling it on every render is free.
+ */
+async function ensureChartJs() {
+  applyChartTheme();
+  return Chart;
 }
 
         const CHART_TYPES = ['bar', 'line', 'pie', 'doughnut', 'radar', 'polarArea', 'scatter', 'bubble'];

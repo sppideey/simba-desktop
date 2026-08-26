@@ -30,7 +30,10 @@ export const VISION_MODELS = [
   'google/gemma-4-26b-a4b-it:free',
 ];
 
-export const MAX_TOKENS = 2048;
+export const MAX_TOKENS = 4096;
+
+/** How many times a reply cut off at the output cap is asked to carry on. */
+export const MAX_CONTINUATIONS = 3;
 
 /** Downscale before upload: fewer tokens, faster replies. */
 export const IMAGE_MAX_EDGE = 1024;

@@ -45,8 +45,24 @@ const SUBLINE = (() => {
  * show the same change the same way.
  */
 function Diff({ lines }: { lines: string[] }) {
+  // A count says more at a glance than counting rows does.
+  const added = lines.filter((l) => l.startsWith('+') && /^\+\d+\|/.test(l)).length;
+  const removed = lines.filter((l) => l.startsWith('-') && /^-\d+\|/.test(l)).length;
+
   return (
-    <div className="my-2 ml-[17px] overflow-hidden rounded-lg border border-border font-mono text-[11.5px] leading-[1.6]">
+    <div className="my-2 ml-[17px]">
+      <div className="mb-1 flex gap-2.5 font-mono text-[11px]">
+        {added > 0 && <span style={{ color: 'var(--added-fg)' }}>+{added}</span>}
+        {removed > 0 && <span style={{ color: 'var(--removed-fg)' }}>−{removed}</span>}
+      </div>
+      <DiffBody lines={lines} />
+    </div>
+  );
+}
+
+function DiffBody({ lines }: { lines: string[] }) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-border font-mono text-[11.5px] leading-[1.6]">
       {lines.map((raw, i) => {
         const added = raw.startsWith('+');
         const rest = raw.slice(1);
@@ -187,12 +203,17 @@ function Row({ item }: { item: Renderable }) {
     case 'tool':
       return (
         <div className="mb-1">
-          <div className="flex items-baseline gap-2 text-[13px]">
+          <div className="flex items-baseline gap-2 text-[12.5px] opacity-80">
             <span className={item.failed ? 'text-destructive' : 'text-purple-2'}>●</span>
             <span>{item.label}</span>
           </div>
           {item.summary !== undefined && (
-            <div className={cn('pl-[17px] text-[12.5px]', item.failed ? 'text-destructive' : 'text-dim')}>
+            <div
+              className={cn(
+                'pl-[17px] text-[11.5px]',
+                item.failed ? 'text-destructive' : 'text-dim opacity-70',
+              )}
+            >
               <span className="opacity-70">⎿ </span>{item.summary}
             </div>
           )}
@@ -252,6 +273,23 @@ function AgentStatus() {
       {reason}
     </p>
   );
+}
+
+/**
+ * Seconds since the turn began.
+ *
+ * The label can sit unchanged for a minute on a slow free endpoint, so the
+ * count is the proof the app is still alive rather than hung.
+ */
+function Elapsed() {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const started = Date.now();
+    const t = setInterval(() => setSeconds(Math.round((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, []);
+  if (seconds < 2) return null;
+  return <span className="ml-auto shrink-0 font-mono text-[11px] text-dim">{seconds}s</span>;
 }
 
 /* ------------------------------------------------------------------ view */
@@ -482,10 +520,17 @@ export function CodeView() {
                   <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-purple-2 align-text-bottom" />
                 </div>
               )}
-              {code.busy && code.status && (
-                <div className="flex items-center gap-2.5 py-2 text-[13px] text-muted-foreground">
-                  <Sparkles className="size-3.5 animate-pulse text-purple-2" />
-                  {code.status}
+              {/*
+                What it is doing, right now.
+                Kept at full strength while the transcript around it is dimmed:
+                a long turn is otherwise a wall of faint grey with no sign of
+                life, and this is the one line that says the app is working.
+              */}
+              {code.busy && (
+                <div className="flex items-center gap-2.5 py-2.5 text-[13px] text-foreground">
+                  <Sparkles className="size-3.5 shrink-0 animate-pulse text-purple-2" />
+                  <span className="truncate">{code.status ?? 'Thinking…'}</span>
+                  <Elapsed />
                 </div>
               )}
             </div>

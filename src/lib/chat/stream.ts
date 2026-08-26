@@ -15,7 +15,7 @@
  */
 
 import {
-  CHAT_KEYS, OPENROUTER_URL, TEXT_MODEL, VISION_MODELS, MAX_TOKENS, IMAGE_MAX_EDGE,
+  CHAT_KEYS, OPENROUTER_URL, TEXT_MODEL, VISION_MODELS, MAX_TOKENS, MAX_CONTINUATIONS, IMAGE_MAX_EDGE,
 } from '../config';
 import { SYSTEM_INSTRUCTION } from './prompt';
 
@@ -97,7 +97,7 @@ async function callOnce(
   model: string,
   messages: WireMessage[],
   { onToken, signal }: StreamOptions,
-): Promise<string> {
+): Promise<{ text: string; truncated: boolean }> {
   const response = await fetch(OPENROUTER_URL, {
     method: 'POST',
     headers: {
@@ -129,6 +129,7 @@ async function callOnce(
   const decoder = new TextDecoder();
   let buffer = '';
   let full = '';
+  let finishReason: string | null = null;
 
   for (;;) {
     const { done, value } = await reader.read();
@@ -147,7 +148,7 @@ async function callOnce(
 
       let frame: {
         error?: { message?: string; code?: number };
-        choices?: Array<{ delta?: { content?: string } }>;
+        choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }>;
       };
       try {
         frame = JSON.parse(payload);
@@ -163,6 +164,11 @@ async function callOnce(
         throw err;
       }
 
+      // "length" means the provider cut the reply at its output cap, not that
+      // the thought finished. Recorded so the caller can ask for the rest.
+      const reason = frame.choices?.[0]?.finish_reason;
+      if (reason) finishReason = reason;
+
       const delta = frame.choices?.[0]?.delta?.content;
       if (delta) {
         full += delta;
@@ -171,7 +177,7 @@ async function callOnce(
     }
   }
 
-  return full;
+  return { text: full, truncated: finishReason === 'length' };
 }
 
 /**
@@ -200,10 +206,52 @@ export async function generateResponse(
   for (let i = 0; i < attempts.length; i++) {
     const { key, model } = attempts[i];
     try {
-      return await callOnce(key, model, messages, {
+      const first = await callOnce(key, model, messages, {
         ...options,
         onToken: (d) => { emitted += d.length; options.onToken(d); },
       });
+
+      /**
+       * Carry on where the provider cut it off.
+       *
+       * A long answer hits the output cap mid-sentence, and the user is handed
+       * half a reply with no sign there was more of it. Asking for the rest and
+       * streaming it straight on is the difference between an app that "stops
+       * in the middle" and one that finishes the thought.
+       *
+       * Three continuations covers any answer worth reading; past that the
+       * model is rambling and stopping is the kinder outcome.
+       */
+      let text = first.text;
+      let truncated = first.truncated;
+
+      for (let carry = 0; truncated && carry < MAX_CONTINUATIONS; carry++) {
+        options.onAttempt?.('continuing…');
+        const next = await callOnce(
+          key,
+          model,
+          [
+            ...messages,
+            { role: 'assistant', content: text },
+            {
+              role: 'user',
+              content:
+                'Your reply stopped at the output limit, mid-sentence. Continue from exactly '
+                + 'where it broke off. Do not repeat any of it, do not start again, and do not '
+                + 'add a preface — just carry on.',
+            },
+          ],
+          {
+            ...options,
+            // A continuation usually resumes mid-word, so no separator is added.
+            onToken: (d) => { emitted += d.length; options.onToken(d); },
+          },
+        );
+        text += next.text;
+        truncated = next.truncated;
+      }
+
+      return text;
     } catch (err) {
       if (options.signal?.aborted) throw err;
       lastError = err;

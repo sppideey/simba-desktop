@@ -18,12 +18,6 @@ import * as docxLib from 'docx';
 /** docx is a real dependency here, so there is nothing to lazy-load. */
 async function ensureDocx() { return docxLib; }
 
-function escapeHtml(str) {
-    return String(str == null ? '' : str)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
         const DOCX_CHART_BG = '#1e1b4b';
         const DOCX_CHART_MAX_W = 600;   // points — page width inside the margins
         const DOCX_CHART_MAX_H = 270;
