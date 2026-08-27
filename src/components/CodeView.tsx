@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import {
-  FolderSearch, AlertCircle, Download, Sparkles, ShieldAlert,
+  FolderSearch, AlertCircle, Download, Sparkles, ShieldAlert, ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -109,32 +109,44 @@ function Markdown({ text }: { text: string }) {
   return <div ref={ref} className="prose-simba my-3" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-/** A run of consecutive reads, collapsed into one line. */
-type ReadGroup = { kind: 'reads'; id: string; items: Extract<TranscriptItem, { kind: 'tool' }>[] };
-type Renderable = TranscriptItem | ReadGroup;
+/** A run of consecutive tool calls, collapsed into one line. */
+type ToolGroup = { kind: 'tools'; id: string; items: Extract<TranscriptItem, { kind: 'tool' }>[] };
+type Renderable = TranscriptItem | ToolGroup;
 
-/** Reading tui.js, Reading llm.js, Reading tools.js → "Read 3 files". */
 const READ_LABEL = /^(Reading|Listing|Finding)\b/;
 
+/** "Read 4 files", "Ran 3 commands", "Made 5 edits" — what the run actually was. */
+function describeRun(items: Extract<TranscriptItem, { kind: 'tool' }>[]): string {
+  const n = items.length;
+  const every = (re: RegExp) => items.every((t) => re.test(t.label));
+  if (every(READ_LABEL)) return `Read ${n} files`;
+  if (every(/^(Running|Executing)\b/)) return `Ran ${n} commands`;
+  if (every(/^(Writing|Editing|Creating)\b/)) return `Made ${n} edits`;
+  return `${n} steps`;
+}
+
 /**
- * Collapse runs of three or more consecutive reads.
+ * Collapse runs of two or more consecutive tool calls.
  *
- * Below three the individual filenames are more useful than a count; above it
- * they are just noise scrolling past, and the interesting rows — the edits and
- * the commands — get lost among them.
+ * A long job is mostly the same action repeated, and listing every one buries
+ * the rows that matter — the edits, the test run, the answer. One line with a
+ * count reads at a glance and opens if you want the detail.
+ *
+ * A failed call always breaks the run and stays visible on its own: hiding a
+ * failure inside a tally is the one thing grouping must never do.
  */
-function groupReads(items: TranscriptItem[]): Renderable[] {
+function groupTools(items: TranscriptItem[]): Renderable[] {
   const out: Renderable[] = [];
   let run: Extract<TranscriptItem, { kind: 'tool' }>[] = [];
 
   const flush = () => {
-    if (run.length >= 3) out.push({ kind: 'reads', id: run[0].id, items: run });
+    if (run.length >= 2) out.push({ kind: 'tools', id: run[0].id, items: run });
     else out.push(...run);
     run = [];
   };
 
   for (const item of items) {
-    if (item.kind === 'tool' && READ_LABEL.test(item.label) && !item.failed) {
+    if (item.kind === 'tool' && !item.failed) {
       run.push(item);
       continue;
     }
@@ -145,26 +157,25 @@ function groupReads(items: TranscriptItem[]): Renderable[] {
   return out;
 }
 
-/** Collapsed reads: one line, expandable to the individual files. */
-function ReadGroupRow({ group }: { group: ReadGroup }) {
+/** Collapsed run: one quiet line, expandable to the individual steps. */
+function ToolGroupRow({ group }: { group: ToolGroup }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="mb-1">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-baseline gap-2 text-left text-[13px] transition-opacity hover:opacity-80"
+        className="flex items-center gap-1.5 text-left text-[12px] text-dim opacity-70 transition-opacity hover:opacity-100"
       >
-        <span className="text-purple-2">●</span>
-        <span>Read {group.items.length} files</span>
-        <span className="text-[11px] text-dim">{open ? 'hide' : 'show'}</span>
+        <span>{describeRun(group.items)}</span>
+        <ChevronRight className={cn('size-3 transition-transform', open && 'rotate-90')} />
       </button>
       {open && (
-        <div className="mt-0.5 pl-[17px]">
+        <div className="mt-1 border-l border-border pl-3">
           {group.items.map((t) => (
-            <div key={t.id} className="text-[12px] text-dim">
-              {t.label.replace(READ_LABEL, '').trim()}
-              {t.summary && <span className="opacity-60"> · {t.summary}</span>}
+            <div key={t.id} className="text-[11.5px] text-dim opacity-70">
+              {stripTrailingStop(t.label)}
+              {t.summary && <span className="opacity-60"> · {stripTrailingStop(t.summary)}</span>}
             </div>
           ))}
         </div>
@@ -173,19 +184,24 @@ function ReadGroupRow({ group }: { group: ReadGroup }) {
   );
 }
 
+/** The agent ends some labels with a full stop; a list item should not. */
+function stripTrailingStop(text: string): string {
+  return String(text ?? '').trim().replace(/\.$/, '');
+}
+
 function Row({ item }: { item: Renderable }) {
   switch (item.kind) {
     case 'user':
       return (
         <div className="mb-4 flex justify-end">
-          <div className="max-w-[88%] rounded-[1.2rem] border border-border bg-card px-4 py-3 text-[14.5px] whitespace-pre-wrap">
+          <div className="max-w-full rounded-[1.2rem] border border-border bg-card px-4 py-3 text-[14.5px] leading-relaxed whitespace-pre-wrap">
             {item.text}
           </div>
         </div>
       );
 
-    case 'reads':
-      return <ReadGroupRow group={item} />;
+    case 'tools':
+      return <ToolGroupRow group={item} />;
 
     // Narration and thinking are context, not content: small and faint enough
     // to skim past, so the eye lands on what the agent did rather than on what
@@ -200,21 +216,27 @@ function Row({ item }: { item: Renderable }) {
         </div>
       );
 
+    // No leading bullet and no trailing full stop — this is a log line, not
+    // a sentence, and the punctuation reads as clutter at this size.
     case 'tool':
       return (
         <div className="mb-1">
-          <div className="flex items-baseline gap-2 text-[12.5px] opacity-80">
-            <span className={item.failed ? 'text-destructive' : 'text-purple-2'}>●</span>
-            <span>{item.label}</span>
+          <div
+            className={cn(
+              'text-[12px]',
+              item.failed ? 'text-destructive' : 'text-dim opacity-70',
+            )}
+          >
+            {stripTrailingStop(item.label)}
           </div>
           {item.summary !== undefined && (
             <div
               className={cn(
-                'pl-[17px] text-[11.5px]',
-                item.failed ? 'text-destructive' : 'text-dim opacity-70',
+                'pl-3 text-[11.5px]',
+                item.failed ? 'text-destructive' : 'text-dim opacity-55',
               )}
             >
-              <span className="opacity-70">⎿ </span>{item.summary}
+              {stripTrailingStop(item.summary)}
             </div>
           )}
         </div>
@@ -329,7 +351,13 @@ export function CodeView() {
         // finished job — say so and offer to carry on.
         store.setStopped(e.stopped ?? null);
         break;
-      case 'narrate': store.push({ kind: 'narrate', id: uid(), text: e.text }); break;
+      // The agent's one-line account of what it is about to do. It is both a
+      // transcript row and the live line — this is the "text by the AI" that
+      // makes a long wait legible, rather than a generic spinner label.
+      case 'narrate':
+        store.push({ kind: 'narrate', id: uid(), text: e.text });
+        store.setStatus(e.text);
+        break;
       case 'tool_call': store.push({ kind: 'tool', id: uid(), label: e.label }); break;
       case 'tool_result': store.patchLastTool({ summary: e.summary }); break;
       case 'tool_failed': store.patchLastTool({ summary: e.summary, failed: true }); break;
@@ -347,8 +375,11 @@ export function CodeView() {
         if (e.text.trim() && !e.asStatus) store.push({ kind: 'assistant', id: uid(), text: e.text });
         else if (e.text.trim()) store.push({ kind: 'narrate', id: uid(), text: e.text });
         break;
+      // Only the agent's own words reach the live line. Raw command output
+      // arrives as 'working', which means "still moving" and nothing more.
       case 'busy':
       case 'status': store.setStatus(e.text); break;
+      case 'working': break;
       case 'idle': store.setStatus(null); break;
       case 'confirm_request':
         store.setConfirm({ id: e.id, action: e.action, detail: e.detail, risk: e.risk });
@@ -557,7 +588,7 @@ export function CodeView() {
             </>
           ) : (
             <div className="pt-6 pb-2">
-              {groupReads(code.transcript).map((item) => <Row key={item.id} item={item} />)}
+              {groupTools(code.transcript).map((item) => <Row key={item.id} item={item} />)}
               {streamed && (
                 <div className="my-3 text-[15px] leading-relaxed whitespace-pre-wrap">
                   {streamed}

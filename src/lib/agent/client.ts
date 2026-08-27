@@ -18,6 +18,7 @@ export type AgentEvent =
   | { type: 'status'; text: string }
   | { type: 'busy'; text: string }
   | { type: 'idle' }
+  | { type: 'working' }
   | { type: 'clear' }
   | { type: 'tool_call'; label: string }
   | { type: 'tool_result'; summary: string }

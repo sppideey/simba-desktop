@@ -81,11 +81,11 @@
    near-black backdrop rather than its bright landing gradient.
    =================================================================== */
 :root {
-    --background:         #0a0a0f;
+    --background:         #080b12;
     --foreground:         #f1f5f9;
     --card:               rgba(255, 255, 255, 0.04);
     --card-foreground:    #f1f5f9;
-    --popover:            #14141c;
+    --popover:            #111722;
     --popover-foreground: #f1f5f9;
     --primary:            #7c3aed;
     --primary-foreground: #ffffff;
@@ -101,7 +101,7 @@
     --ring:               rgba(167, 139, 250, 0.35);
     --radius:             0.9rem;
 
-    --sidebar:                    rgba(15, 23, 42, 0.72);
+    --sidebar:                    rgba(13, 22, 40, 0.74);
     --sidebar-foreground:         #f1f5f9;
     --sidebar-primary:            #7c3aed;
     --sidebar-primary-foreground: #ffffff;
@@ -152,7 +152,12 @@
         overscroll-behavior: none;
     }
 
-    /* Faint purple bloom so near-black does not read as flat grey */
+    /*
+      Faint bloom so near-black does not read as flat grey.
+      Blue-leaning rather than purple: purple over a dark UI tips into the
+      generic "AI product" look, and the cooler cast reads calmer behind text
+      you are meant to sit and read for a while.
+    */
     body::before {
         content: '';
         position: fixed;
@@ -160,8 +165,9 @@
         pointer-events: none;
         z-index: 0;
         background:
-            radial-gradient(720px 420px at 12% -8%, rgba(124, 58, 237, 0.16), transparent 62%),
-            radial-gradient(620px 380px at 88% 104%, rgba(79, 70, 229, 0.13), transparent 62%);
+            radial-gradient(760px 440px at 10% -10%, rgba(56, 132, 255, 0.15), transparent 64%),
+            radial-gradient(640px 400px at 90% 106%, rgba(59, 96, 214, 0.12), transparent 64%),
+            radial-gradient(520px 320px at 72% 8%, rgba(99, 102, 241, 0.07), transparent 62%);
     }
 
     h1, h2, h3, h4 { font-family: var(--font-heading); letter-spacing: -0.03em; }

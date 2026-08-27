@@ -45,9 +45,17 @@ export class RpcUI {
   /** Lines arrive as "+418| text" / "-418| text" — parsed by the renderer. */
   diff(lines) { emit({ type: 'diff', lines }); }
   commandOutput(lines) { emit({ type: 'command_output', lines }); }
-  progress(lines) {
-    const last = lines[lines.length - 1]?.trim();
-    if (last) emit({ type: 'status', text: last });
+  /**
+   * Output from a running command.
+   *
+   * Deliberately NOT sent to the status line. Raw build output — webpack
+   * hashes, npm progress bars, stack frames — is noise the moment it scrolls
+   * past, and putting it where the user looks for "what is happening" makes
+   * the app feel like a log viewer. The status line carries the agent's own
+   * words instead; this only reports that work is still moving.
+   */
+  progress() {
+    emit({ type: 'working' });
   }
 
   assistant(text) {
