@@ -123,6 +123,9 @@ fn agent_start(
         // Scaffolding a whole app is dozens of writes before anything runs;
         // the CLI default of 50 stops halfway through and looks like giving up.
         .env("SIMBA_MAX_STEPS", "200")
+        // The agent boots on north-mini-code; lightning activates 3B params
+        // against its 12B, which is the difference between a pause and a wait.
+        .env("SIMBA_MODEL", "nvidia/nemotron-3.5-lightning:free")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

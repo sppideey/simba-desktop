@@ -81,11 +81,11 @@
    near-black backdrop rather than its bright landing gradient.
    =================================================================== */
 :root {
-    --background:         #080b12;
+    --background:         #0a1526;
     --foreground:         #f1f5f9;
     --card:               rgba(255, 255, 255, 0.04);
     --card-foreground:    #f1f5f9;
-    --popover:            #111722;
+    --popover:            #12203a;
     --popover-foreground: #f1f5f9;
     --primary:            #7c3aed;
     --primary-foreground: #ffffff;
@@ -101,7 +101,7 @@
     --ring:               rgba(167, 139, 250, 0.35);
     --radius:             0.9rem;
 
-    --sidebar:                    rgba(13, 22, 40, 0.74);
+    --sidebar:                    rgba(14, 30, 56, 0.76);
     --sidebar-foreground:         #f1f5f9;
     --sidebar-primary:            #7c3aed;
     --sidebar-primary-foreground: #ffffff;
@@ -165,9 +165,9 @@
         pointer-events: none;
         z-index: 0;
         background:
-            radial-gradient(760px 440px at 10% -10%, rgba(56, 132, 255, 0.15), transparent 64%),
-            radial-gradient(640px 400px at 90% 106%, rgba(59, 96, 214, 0.12), transparent 64%),
-            radial-gradient(520px 320px at 72% 8%, rgba(99, 102, 241, 0.07), transparent 62%);
+            radial-gradient(820px 480px at 8% -12%, rgba(56, 141, 255, 0.22), transparent 66%),
+            radial-gradient(700px 430px at 92% 108%, rgba(46, 108, 224, 0.18), transparent 66%),
+            radial-gradient(560px 340px at 70% 6%, rgba(88, 160, 255, 0.10), transparent 64%);
     }
 
     h1, h2, h3, h4 { font-family: var(--font-heading); letter-spacing: -0.03em; }

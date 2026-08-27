@@ -339,9 +339,16 @@ export function CodeView() {
   const handle = useCallback((e: AgentEvent) => {
     const store = useCode.getState();
     switch (e.type) {
-      case 'ready':
-        store.setReady({ check: e.check, skills: e.skills, model: e.model });
+      case 'ready': {
+        // The agent boots on its own default (north-mini-code). Taking that as
+        // the truth threw away the user's stored choice on every reconnect —
+        // and left Code mode on a slower model than the one the chip promised.
+        // Our preference wins; the agent is told about it.
+        const wanted = store.model || e.model;
+        store.setReady({ check: e.check, skills: e.skills, model: wanted });
+        if (wanted !== e.model) agent.setModel(wanted);
         break;
+      }
       case 'turn_begin': store.setBusy(true); store.setStopped(null); break;
       case 'turn_end':
         store.setBusy(false);
@@ -531,7 +538,7 @@ export function CodeView() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <div className={cn('mx-auto flex w-full max-w-[820px] flex-1 flex-col px-8', empty && 'justify-center')}>
+        <div className={cn('mx-auto flex w-full max-w-[1000px] flex-1 flex-col px-8', empty && 'justify-center')}>
           {empty ? (
             <>
               {/* No logo, and nothing naming the project — the sidebar has both. */}
@@ -638,7 +645,7 @@ export function CodeView() {
 
       {!empty && (
         <div className="px-8 pt-1.5 pb-6">
-          <div className="mx-auto w-full max-w-[820px]">
+          <div className="mx-auto w-full max-w-[1000px]">
             <Composer
               mode="code"
               docked
