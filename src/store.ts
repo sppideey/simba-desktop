@@ -222,6 +222,8 @@ type CodeState = {
   skills: SkillInfo[];
   contextPercent: number;
   nodeVersion: string | null | 'unknown';
+  /** Why the last turn ended early, if it did. Null means it finished. */
+  stopped: string | null;
 
   addProject: (path: string, name: string) => Project;
   openProject: (id: string) => void;
@@ -240,6 +242,7 @@ type CodeState = {
   setPlanMode: (v: boolean) => void;
   setReady: (v: { check: string | null; skills: SkillInfo[]; model: string }) => void;
   setContextPercent: (v: number) => void;
+  setStopped: (v: string | null) => void;
   setNodeVersion: (v: string | null) => void;
   current: () => Project | null;
 };
@@ -260,6 +263,7 @@ export const useCode = create<CodeState>()(
       skills: [],
       contextPercent: 0,
       nodeVersion: 'unknown',
+      stopped: null,
 
       addProject: (path, name) => {
         const existing = get().projects.find((p) => p.path === path);
@@ -315,6 +319,7 @@ export const useCode = create<CodeState>()(
       setPlanMode: (planMode) => set({ planMode }),
       setReady: ({ check, skills, model }) => set({ check, skills, model, running: true }),
       setContextPercent: (contextPercent) => set({ contextPercent }),
+      setStopped: (stopped) => set({ stopped }),
       setNodeVersion: (nodeVersion) => set({ nodeVersion }),
       current: () => get().projects.find((p) => p.id === get().currentId) ?? null,
     }),

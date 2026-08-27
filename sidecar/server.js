@@ -55,14 +55,22 @@ async function runTurn(text) {
   if (running) return;
   running = true;
   send({ type: 'turn_begin' });
+
+  // Why the turn ended, so the app can offer to carry on rather than just
+  // going quiet. "Stopped in the middle" with no explanation is the single
+  // most confusing thing an agent can do.
+  let stopped = null;
+
   try {
     await agent.turn(text);
   } catch (err) {
+    stopped = err?.kind ?? 'error';
     ui.error(err, { debug: Boolean(process.env.SIMBA_DEBUG) });
   } finally {
     running = false;
     send({
       type: 'turn_end',
+      stopped,
       usage: agent.session.usage,
       context: contextStats(agent.working, contextLimit()),
       title: agent.session.title,

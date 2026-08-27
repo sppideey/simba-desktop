@@ -120,6 +120,9 @@ fn agent_start(
         .arg(&cwd)
         .current_dir(&cwd)
         .env("OPENROUTER_API_KEY", openrouter_key)
+        // Scaffolding a whole app is dozens of writes before anything runs;
+        // the CLI default of 50 stops halfway through and looks like giving up.
+        .env("SIMBA_MAX_STEPS", "200")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

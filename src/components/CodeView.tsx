@@ -320,11 +320,14 @@ export function CodeView() {
       case 'ready':
         store.setReady({ check: e.check, skills: e.skills, model: e.model });
         break;
-      case 'turn_begin': store.setBusy(true); break;
+      case 'turn_begin': store.setBusy(true); store.setStopped(null); break;
       case 'turn_end':
         store.setBusy(false);
         store.setStatus(null);
         store.setContextPercent(Math.round(e.context?.percent ?? 0));
+        // A turn that ended because it ran out of steps, or threw, is not a
+        // finished job — say so and offer to carry on.
+        store.setStopped(e.stopped ?? null);
         break;
       case 'narrate': store.push({ kind: 'narrate', id: uid(), text: e.text }); break;
       case 'tool_call': store.push({ kind: 'tool', id: uid(), label: e.label }); break;
@@ -399,9 +402,50 @@ export function CodeView() {
     code.addProject(picked, name);
   };
 
+  /**
+   * Slash commands, handled here rather than sent to the model.
+   *
+   * The CLI has them and muscle memory expects them; typing /clear and getting
+   * a confused paragraph back is worse than not having them at all.
+   */
+  const COMMANDS: Record<string, { hint: string; run: () => void }> = {
+    '/new': { hint: 'start a fresh session', run: () => { code.clearTranscript(); agent.newSession(); } },
+    '/clear': { hint: 'clear the screen, keep the session', run: () => code.clearTranscript() },
+    '/plan': { hint: 'read-only mode', run: () => code.setPlanMode(true) },
+    '/build': { hint: 'allow edits and commands', run: () => code.setPlanMode(false) },
+    '/skills': {
+      hint: 'list what Simba can load',
+      run: () => code.push({
+        kind: 'note', id: uid(),
+        text: code.skills.length
+          ? `Skills: ${code.skills.map((s) => s.name).join(', ')}`
+          : 'No skills found for this project.',
+      }),
+    },
+    '/model': {
+      hint: 'show the current model',
+      run: () => code.push({ kind: 'note', id: uid(), text: `Model: ${code.model}` }),
+    },
+    '/stop': { hint: 'interrupt the current turn', run: () => agent.abort() },
+    '/help': {
+      hint: 'this list',
+      run: () => code.push({
+        kind: 'note', id: uid(),
+        text: Object.entries(COMMANDS).map(([k, v]) => `${k} — ${v.hint}`).join('\n'),
+      }),
+    },
+  };
+
   const send = (text: string) => {
+    const command = text.trim().split(/\s+/)[0].toLowerCase();
+    if (COMMANDS[command]) {
+      code.push({ kind: 'user', id: uid(), text });
+      COMMANDS[command].run();
+      return;
+    }
     code.push({ kind: 'user', id: uid(), text });
     code.setBusy(true);
+    code.setStopped(null);
     agent.message(text);
   };
 
@@ -527,10 +571,33 @@ export function CodeView() {
                 life, and this is the one line that says the app is working.
               */}
               {code.busy && (
-                <div className="flex items-center gap-2.5 py-2.5 text-[13px] text-foreground">
+                <div className="flex items-center gap-2.5 py-2.5 text-[12.5px] text-muted-foreground">
                   <Sparkles className="size-3.5 shrink-0 animate-pulse text-purple-2" />
                   <span className="truncate">{code.status ?? 'Thinking…'}</span>
                   <Elapsed />
+                </div>
+              )}
+
+              {/*
+                The turn ended before the work did. Rather than going quiet —
+                which is what "it just stopped" feels like — say why, and make
+                carrying on a single click.
+              */}
+              {!code.busy && code.stopped && (
+                <div className="my-3 flex items-center gap-3 rounded-xl border border-ring bg-primary/10 px-4 py-3">
+                  <span className="min-w-0 flex-1 text-[12.5px] leading-relaxed text-muted-foreground">
+                    {code.stopped === 'step_limit'
+                      ? 'That was a long job and it paused partway through.'
+                      : 'The turn ended early.'}{' '}
+                    Nothing is lost — it can pick up where it left off.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => send('Continue exactly where you left off. Do not start again.')}
+                    className="shrink-0 rounded-full bg-[image:var(--gradient)] px-4 py-1.5 text-xs text-white transition-transform hover:-translate-y-0.5"
+                  >
+                    Continue
+                  </button>
                 </div>
               )}
             </div>

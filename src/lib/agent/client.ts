@@ -12,7 +12,7 @@ import { CODE_KEY, TAVILY_KEY } from '../config';
 export type AgentEvent =
   | { type: 'ready'; cwd: string; model: string; check: string | null; skills: SkillInfo[] }
   | { type: 'turn_begin' }
-  | { type: 'turn_end'; usage: Usage; context: ContextStats; title: string; sessionId: string }
+  | { type: 'turn_end'; stopped?: string | null; usage: Usage; context: ContextStats; title: string; sessionId: string }
   | { type: 'narrate'; text: string }
   | { type: 'note'; text: string }
   | { type: 'status'; text: string }
