@@ -165,7 +165,7 @@ function ToolGroupRow({ group }: { group: ToolGroup }) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 text-left text-[12px] text-dim opacity-70 transition-opacity hover:opacity-100"
+        className="flex items-center gap-1.5 text-left text-[12px] text-dim opacity-85 transition-opacity hover:opacity-100"
       >
         <span>{describeRun(group.items)}</span>
         <ChevronRight className={cn('size-3 transition-transform', open && 'rotate-90')} />
@@ -173,7 +173,7 @@ function ToolGroupRow({ group }: { group: ToolGroup }) {
       {open && (
         <div className="mt-1 border-l border-border pl-3">
           {group.items.map((t) => (
-            <div key={t.id} className="text-[11.5px] text-dim opacity-70">
+            <div key={t.id} className="text-[11.5px] text-dim opacity-80">
               {stripTrailingStop(t.label)}
               {t.summary && <span className="opacity-60"> · {stripTrailingStop(t.summary)}</span>}
             </div>
@@ -207,11 +207,11 @@ function Row({ item }: { item: Renderable }) {
     // to skim past, so the eye lands on what the agent did rather than on what
     // it said about doing it.
     case 'narrate':
-      return <div className="mb-0.5 pl-0.5 text-[11.5px] text-dim opacity-45">{item.text}</div>;
+      return <div className="mb-0.5 pl-0.5 text-[11.5px] text-dim opacity-75">{item.text}</div>;
 
     case 'thought':
       return (
-        <div className="mb-0.5 pl-0.5 text-[11.5px] text-dim italic opacity-40">
+        <div className="mb-0.5 pl-0.5 text-[11.5px] text-dim italic opacity-65">
           Thought for {item.seconds}s
         </div>
       );
@@ -224,7 +224,7 @@ function Row({ item }: { item: Renderable }) {
           <div
             className={cn(
               'text-[12px]',
-              item.failed ? 'text-destructive' : 'text-dim opacity-70',
+              item.failed ? 'text-destructive' : 'text-dim opacity-85',
             )}
           >
             {stripTrailingStop(item.label)}
@@ -233,7 +233,7 @@ function Row({ item }: { item: Renderable }) {
             <div
               className={cn(
                 'pl-3 text-[11.5px]',
-                item.failed ? 'text-destructive' : 'text-dim opacity-55',
+                item.failed ? 'text-destructive' : 'text-dim opacity-70',
               )}
             >
               {stripTrailingStop(item.summary)}
@@ -255,7 +255,7 @@ function Row({ item }: { item: Renderable }) {
       );
 
     case 'note':
-      return <div className="mb-0.5 pl-0.5 text-[11.5px] text-dim opacity-45">{item.text}</div>;
+      return <div className="mb-0.5 pl-0.5 text-[11.5px] text-dim opacity-75">{item.text}</div>;
 
     case 'assistant':
       return <Markdown text={item.text} />;

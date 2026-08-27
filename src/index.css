@@ -81,27 +81,27 @@
    near-black backdrop rather than its bright landing gradient.
    =================================================================== */
 :root {
-    --background:         #0a1526;
+    --background:         #12305e;
     --foreground:         #f1f5f9;
-    --card:               rgba(255, 255, 255, 0.04);
+    --card:               rgba(255, 255, 255, 0.07);
     --card-foreground:    #f1f5f9;
-    --popover:            #12203a;
+    --popover:            #1b4079;
     --popover-foreground: #f1f5f9;
     --primary:            #7c3aed;
     --primary-foreground: #ffffff;
     --secondary:          rgba(255, 255, 255, 0.06);
     --secondary-foreground: #f1f5f9;
     --muted:              rgba(255, 255, 255, 0.04);
-    --muted-foreground:   rgba(255, 255, 255, 0.45);
+    --muted-foreground:   rgba(255, 255, 255, 0.62);
     --accent:             rgba(255, 255, 255, 0.07);
     --accent-foreground:  #f1f5f9;
     --destructive:        #f0959d;
-    --border:             rgba(255, 255, 255, 0.08);
+    --border:             rgba(255, 255, 255, 0.12);
     --input:              rgba(0, 0, 0, 0.32);
     --ring:               rgba(167, 139, 250, 0.35);
     --radius:             0.9rem;
 
-    --sidebar:                    rgba(14, 30, 56, 0.76);
+    --sidebar:                    rgba(23, 58, 112, 0.72);
     --sidebar-foreground:         #f1f5f9;
     --sidebar-primary:            #7c3aed;
     --sidebar-primary-foreground: #ffffff;
@@ -110,7 +110,7 @@
     --sidebar-border:             rgba(255, 255, 255, 0.08);
     --sidebar-ring:               rgba(167, 139, 250, 0.35);
 
-    --dim:       rgba(255, 255, 255, 0.20);
+    --dim:       rgba(255, 255, 255, 0.34);
     --border-hi: rgba(255, 255, 255, 0.15);
     --purple:    #7c3aed;
     --purple-2:  #a78bfa;
@@ -165,9 +165,9 @@
         pointer-events: none;
         z-index: 0;
         background:
-            radial-gradient(820px 480px at 8% -12%, rgba(56, 141, 255, 0.22), transparent 66%),
-            radial-gradient(700px 430px at 92% 108%, rgba(46, 108, 224, 0.18), transparent 66%),
-            radial-gradient(560px 340px at 70% 6%, rgba(88, 160, 255, 0.10), transparent 64%);
+            radial-gradient(900px 520px at 6% -14%, rgba(96, 175, 255, 0.30), transparent 66%),
+            radial-gradient(760px 460px at 94% 110%, rgba(56, 120, 224, 0.26), transparent 66%),
+            radial-gradient(620px 380px at 68% 4%, rgba(130, 190, 255, 0.16), transparent 64%);
     }
 
     h1, h2, h3, h4 { font-family: var(--font-heading); letter-spacing: -0.03em; }
