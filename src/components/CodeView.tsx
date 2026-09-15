@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 
 import { useApp, useCode, uid, type TranscriptItem } from '@/store';
 import {
-  agent, startAgent, stopAgent, nodeVersion, type AgentEvent,
+  agent, startAgent, stopAgent, nodeVersion, contextPercent, type AgentEvent,
 } from '@/lib/agent/client';
 import { renderMarkdown, enhanceCodeBlocks } from '@/lib/chat/markdown';
 import { CODE_SUGGESTIONS, SUBLINES, greetingFor, timeBand } from '@/lib/config';
@@ -257,6 +257,35 @@ function Row({ item }: { item: Renderable }) {
     case 'note':
       return <div className="mb-0.5 pl-0.5 text-[11.5px] text-dim opacity-75">{item.text}</div>;
 
+    // The plan is the one place the agent says what it intends to do before
+    // doing it, so it gets a frame — but a quiet one. Finished steps fade
+    // rather than vanish: what has been done is the useful half of a checklist.
+    case 'plan':
+      return (
+        <div className="my-2 rounded-2xl border border-border bg-card/50 px-4 py-3">
+          {item.items.map((step, i) => (
+            <div
+              key={i}
+              className={cn(
+                'flex items-start gap-2.5 py-[3px] text-[12.5px] leading-snug',
+                step.done ? 'text-dim opacity-55' : 'text-foreground/85',
+              )}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  'mt-[5px] size-[6px] shrink-0 rounded-full',
+                  step.done ? 'bg-dim' : 'bg-primary',
+                )}
+              />
+              <span className={step.done ? 'line-through decoration-dim/40' : undefined}>
+                {step.text}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+
     case 'assistant':
       return <Markdown text={item.text} />;
 
@@ -346,6 +375,7 @@ export function CodeView() {
         // Our preference wins; the agent is told about it.
         const wanted = store.model || e.model;
         store.setReady({ check: e.check, skills: e.skills, model: wanted });
+        store.setContextPercent(contextPercent(e.context));
         if (wanted !== e.model) agent.setModel(wanted);
         break;
       }
@@ -353,7 +383,9 @@ export function CodeView() {
       case 'turn_end':
         store.setBusy(false);
         store.setStatus(null);
-        store.setContextPercent(Math.round(e.context?.percent ?? 0));
+        // 1.19.0 sends used/limit and leaves the arithmetic to us. Reading the
+        // old `percent` field off it silently pinned the meter at 0%.
+        store.setContextPercent(contextPercent(e.context));
         // A turn that ended because it ran out of steps, or threw, is not a
         // finished job — say so and offer to carry on.
         store.setStopped(e.stopped ?? null);
@@ -372,9 +404,57 @@ export function CodeView() {
       case 'command_output': store.push({ kind: 'output', id: uid(), lines: e.lines }); break;
       case 'assistant': store.push({ kind: 'assistant', id: uid(), text: e.text }); break;
       case 'note': store.push({ kind: 'note', id: uid(), text: e.text }); break;
-      case 'reasoning_end':
+      // A user message replayed from a resumed session, so picking a
+      // conversation back up shows both halves of it and not just the replies.
+      case 'user_echo': store.push({ kind: 'user', id: uid(), text: e.text }); break;
+      // The agent's checklist for the job. It supersedes the last one rather
+      // than stacking, so the transcript shows the plan once, up to date.
+      case 'plan': store.push({ kind: 'plan', id: uid(), items: e.items }); break;
+      // Called reasoning_* before 1.19.0 — under the old name this never fired
+      // and the thinking indicator never appeared at all.
+      case 'thinking_end':
         if (e.seconds >= 2) store.push({ kind: 'thought', id: uid(), seconds: e.seconds });
         break;
+
+      // -- live progress within the turn
+      case 'turn_start': store.setProgress({ steps: 0, added: 0, removed: 0 }); break;
+      case 'step': store.setProgress({ steps: e.n }); break;
+      case 'diff_stat': store.setProgress({ added: e.added, removed: e.removed }); break;
+      case 'run_stat': store.setStatus(e.text); break;
+      case 'turn_done': store.setProgress({ steps: e.steps, added: e.added, removed: e.removed }); break;
+      case 'flash': toast(e.text); break;
+
+      // -- lists the agent is blocked on. Both MUST be answered or the turn
+      //    waits forever on a reply that never comes.
+      case 'choose_request':
+        store.setChoice({
+          id: e.id, kind: 'choose', prompt: e.prompt, items: e.items,
+          active: 0, hint: '', allowNone: e.allowNone,
+        });
+        break;
+      case 'pick_request':
+        store.setChoice({
+          id: e.id, kind: 'pick', prompt: '', items: e.items.map((i) => i.label),
+          active: e.active, hint: e.hint, allowNone: true,
+        });
+        break;
+
+      // -- session and model state
+      case 'facts':
+        if (e.model) store.setModel(e.model);
+        if (e.used !== undefined && e.limit !== undefined) {
+          store.setContextPercent(contextPercent({ used: e.used, limit: e.limit }));
+        }
+        break;
+      case 'session_new':
+        store.clearTranscript();
+        store.setContextPercent(contextPercent(e.context));
+        break;
+      case 'session_resumed':
+        store.clearTranscript();
+        store.setContextPercent(contextPercent(e.context));
+        break;
+      case 'skills': store.setReady({ check: store.check, skills: e.skills, model: store.model }); break;
       case 'stream_begin': setStreamed(''); break;
       case 'stream_delta': setStreamed((s) => s + e.delta); break;
       case 'stream_end':
@@ -612,6 +692,25 @@ export function CodeView() {
                 <div className="flex items-center gap-2.5 py-2.5 text-[12.5px] text-muted-foreground">
                   <Sparkles className="size-3.5 shrink-0 animate-pulse text-purple-2" />
                   <span className="truncate">{code.status ?? 'Thinking…'}</span>
+                  {/*
+                    Step count and the running edit tally.
+                    On a long build the label can sit unchanged for a minute at
+                    a time; a number that keeps moving is the difference between
+                    "still working" and "stuck". Mono so the digits do not
+                    reflow the row as they change.
+                  */}
+                  {code.steps > 0 && (
+                    <span className="ml-auto shrink-0 font-mono text-[11px] text-dim tabular-nums">
+                      step {code.steps}
+                    </span>
+                  )}
+                  {(code.added > 0 || code.removed > 0) && (
+                    <span className="shrink-0 font-mono text-[11px] tabular-nums">
+                      <span className="text-emerald-500/80">+{code.added}</span>
+                      {' '}
+                      <span className="text-rose-500/80">−{code.removed}</span>
+                    </span>
+                  )}
                   <Elapsed />
                 </div>
               )}
@@ -700,6 +799,77 @@ export function CodeView() {
               <ShieldAlert className="size-3.5" />
               Approve
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/*
+        A list the agent is waiting on — models, sessions, skills.
+
+        In the terminal this is a numbered list you answer by typing a digit.
+        Here it is a real list you click, with the current row already marked,
+        which is the whole reason the engine offers `pick` as an upgrade over
+        `choose` to any UI that can do better.
+
+        Every path out of this dialog answers the agent. Dismissing it without
+        one leaves the turn waiting forever on a reply that never comes.
+      */}
+      <AlertDialog open={!!code.choice}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading text-[15.5px] font-medium">
+              {code.choice?.prompt || 'Choose one'}
+            </AlertDialogTitle>
+            <AlertDialogDescription className={code.choice?.hint ? 'text-[12.5px] text-dim' : 'sr-only'}>
+              {code.choice?.hint || 'Simba is waiting for you to choose from this list.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="-mx-1 max-h-[46vh] overflow-y-auto px-1">
+            {code.choice?.items.map((label, i) => (
+              <button
+                key={i}
+                type="button"
+                autoFocus={i === code.choice?.active}
+                onClick={() => {
+                  const c = code.choice;
+                  if (!c) return;
+                  if (c.kind === 'pick') agent.pick(c.id, i);
+                  else agent.choose(c.id, i);
+                  code.setChoice(null);
+                }}
+                className={cn(
+                  'flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px]',
+                  'transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none',
+                  i === code.choice?.active ? 'text-foreground' : 'text-muted-foreground',
+                )}
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    'size-[6px] shrink-0 rounded-full',
+                    i === code.choice?.active ? 'bg-primary' : 'bg-transparent',
+                  )}
+                />
+                <span className="truncate">{label}</span>
+              </button>
+            ))}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                const c = code.choice;
+                if (!c) return;
+                // null is "none of these" on both prompts — the engine treats
+                // it as cancel and carries on rather than failing.
+                if (c.kind === 'pick') agent.pick(c.id, null);
+                else agent.choose(c.id, null);
+                code.setChoice(null);
+              }}
+            >
+              {code.choice?.allowNone ? 'None of these' : 'Cancel'}
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

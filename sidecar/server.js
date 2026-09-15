@@ -5,16 +5,22 @@
  * Drives the same Agent the CLI drives, with RpcUI in place of the terminal.
  * Reads newline-delimited JSON commands on stdin, writes events on stdout.
  *
+ * Imports go through the names simba-agent publishes in its `exports` map, not
+ * through file paths. 1.19.0 moved every module this file used to import —
+ * agent.js, llm.js and session.js all became something under src/ — and the
+ * app could not start until they were renamed here. The exports map exists so
+ * the next reshuffle costs nothing.
+ *
  * Commands from the app:
- *   { type: 'user_message', text }
- *   { type: 'set_model',    model }
- *   { type: 'set_mode',     mode: 'plan' | 'build' }
- *   { type: 'set_cwd',      cwd }
+ *   { type: 'user_message',     text }
+ *   { type: 'set_model',        model }
+ *   { type: 'set_mode',         mode: 'plan' | 'build' }
  *   { type: 'confirm_response', id, approved }
  *   { type: 'choose_response',  id, index }
+ *   { type: 'pick_response',    id, index }       // index | null | { delete }
  *   { type: 'abort' }
  *   { type: 'new_session' }
- *   { type: 'resume_session', id }
+ *   { type: 'resume_session',   id }
  *   { type: 'list_sessions' }
  *   { type: 'list_skills' }
  *   { type: 'list_models' }
@@ -24,31 +30,45 @@ import readline from 'node:readline';
 import process from 'node:process';
 
 import { RpcUI } from './rpc-ui.js';
-import { Agent } from 'simba-agent/agent.js';
-import { setModel, getModel, listFreeModels, MODELS, contextLimit } from 'simba-agent/llm.js';
-import { listSessions } from 'simba-agent/session.js';
-import { contextStats } from 'simba-agent/context.js';
+import { Agent } from 'simba-agent/agent';
+import {
+  setModel,
+  model as currentModel,
+  modelList,
+  contextLimit,
+  estimateConversation,
+} from 'simba-agent/provider';
+import { list as listSessions } from 'simba-agent/history';
 
-const send = (event) => process.stdout.write(JSON.stringify(event) + '\n');
+const send = (event) => process.stdout.write(`${JSON.stringify(event)}\n`);
 
 const cwd = process.argv[2] || process.cwd();
+const debug = Boolean(process.env.SIMBA_DEBUG);
 const ui = new RpcUI();
 
-const agent = new Agent({ cwd, debug: Boolean(process.env.SIMBA_DEBUG) });
+const agent = new Agent({ cwd, debug });
 agent.ui = ui;              // the injection point this whole design rests on
-agent.tui = false;
 
-await agent.bootstrap();    // skills + verification detection, without the REPL
+// bootstrap() loads skills and works out the project's check command; it is
+// everything start() does apart from opening a terminal and entering the REPL.
+await agent.bootstrap();
+
+/** What the window shows in its status strip. */
+const context = () => ({
+  used: estimateConversation(agent.working),
+  limit: contextLimit(),
+});
 
 send({
   type: 'ready',
   cwd,
-  model: getModel(),
-  check: agent.verificationCommand(),
+  model: currentModel(),
+  check: agent.check ?? null,
+  context: context(),
   skills: agent.skills.map((s) => ({ name: s.name, description: s.description })),
 });
 
-/** One turn at a time: the composer is disabled while `busy` is true. */
+/** One turn at a time: the composer is disabled while this is true. */
 let running = false;
 
 async function runTurn(text) {
@@ -65,14 +85,14 @@ async function runTurn(text) {
     await agent.turn(text);
   } catch (err) {
     stopped = err?.kind ?? 'error';
-    ui.error(err, { debug: Boolean(process.env.SIMBA_DEBUG) });
+    ui.error(err, { debug });
   } finally {
     running = false;
     send({
       type: 'turn_end',
       stopped,
       usage: agent.session.usage,
-      context: contextStats(agent.working, contextLimit()),
+      context: context(),
       title: agent.session.title,
       sessionId: agent.session.id,
     });
@@ -98,31 +118,41 @@ rl.on('line', async (line) => {
       break;
 
     case 'confirm_response':
-      ui.resolveConfirm(cmd.id, Boolean(cmd.approved));
+      ui.resolve(cmd.id, Boolean(cmd.approved));
       break;
 
     case 'choose_response':
-      ui.resolveConfirm(cmd.id, cmd.index ?? null);
+      ui.resolve(cmd.id, cmd.index ?? null);
+      break;
+
+    case 'pick_response':
+      // null cancels; { delete: n } removes a row; a number chooses one.
+      ui.resolve(cmd.id, cmd.index ?? null);
       break;
 
     case 'set_model':
-      setModel(cmd.model);
-      agent.session.model = cmd.model;
-      send({ type: 'model_changed', model: cmd.model });
+      try {
+        setModel(cmd.model);
+        agent.session.model = cmd.model;
+        send({ type: 'model_changed', model: cmd.model });
+      } catch (err) {
+        ui.error(err, { debug });
+      }
       break;
 
     case 'set_mode':
       ui.mode = cmd.mode === 'plan' ? 'plan' : 'build';
+      ui.onModeChange?.();
       send({ type: 'mode_changed', mode: ui.mode });
       break;
 
     case 'abort':
-      if (agent.abort) agent.abort.abort();
+      agent.abort?.abort();
       break;
 
     case 'new_session':
       await agent.cmdNew();
-      send({ type: 'session_new', id: agent.session.id });
+      send({ type: 'session_new', id: agent.session.id, context: context() });
       break;
 
     case 'resume_session':
@@ -132,6 +162,7 @@ rl.on('line', async (line) => {
           id: agent.session.id,
           title: agent.session.title,
           messages: agent.session.messages,
+          context: context(),
         });
       }
       break;
@@ -146,28 +177,41 @@ rl.on('line', async (line) => {
         skills: agent.skills.map((s) => ({
           name: s.name,
           description: s.description,
-          loaded: agent.loadedSkills.has(s.name),
+          // `loaded` holds whole skills, `short` the digest-only ones.
+          loaded: agent.loaded.has(s.name) || agent.short.has(s.name),
         })),
       });
       break;
 
-    case 'list_models': {
-      const curated = Object.entries(MODELS).map(([id, info]) => ({ id, ...info }));
-      const known = new Set(curated.map((m) => m.id));
-      const rest = (await listFreeModels()).filter((m) => !known.has(m.id));
-      send({ type: 'models', curated, rest, current: getModel() });
+    case 'list_models':
+      // modelList() already marks the active one; there is no separate
+      // free-model fetch in 1.19.0.
+      send({ type: 'models', models: modelList(), current: currentModel() });
       break;
-    }
 
     default:
       break;
   }
 });
 
-rl.on('close', () => process.exit(0));
+rl.on('close', async () => {
+  // Take dev servers down with the session that started them. Without this
+  // every build leaves its server holding the port the next run wants.
+  try {
+    const { stopServers } = await import('simba-agent/shell');
+    stopServers?.();
+  } catch { /* nothing started, or not exported — not worth failing the exit */ }
+  process.exit(0);
+});
 
 // A crash must not vanish silently — the app shows it as an error card.
 process.on('uncaughtException', (err) => {
-  send({ type: 'error', kind: 'crash', attempted: 'running the agent',
-         failed: err?.message ?? String(err), fix: 'Restart Code mode.' });
+  send({
+    type: 'error',
+    kind: 'crash',
+    attempted: 'running the agent',
+    failed: err?.message ?? String(err),
+    fix: 'Restart Code mode.',
+    stack: debug ? err?.stack ?? null : null,
+  });
 });

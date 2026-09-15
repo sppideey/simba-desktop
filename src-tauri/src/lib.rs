@@ -107,7 +107,6 @@ fn agent_start(
     state: State<'_, Agent>,
     cwd: String,
     openrouter_key: String,
-    tavily_key: String,
     on_event: Channel<String>,
 ) -> Result<(), String> {
     stop_agent(&state);
@@ -120,19 +119,19 @@ fn agent_start(
         .arg(&cwd)
         .current_dir(&cwd)
         .env("OPENROUTER_API_KEY", openrouter_key)
-        // Scaffolding a whole app is dozens of writes before anything runs;
-        // the CLI default of 50 stops halfway through and looks like giving up.
-        .env("SIMBA_MAX_STEPS", "200")
-        // The agent boots on north-mini-code; lightning activates 3B params
-        // against its 12B, which is the difference between a pause and a wait.
-        .env("SIMBA_MODEL", "nvidia/nemotron-3.5-lightning:free")
+        // Neither the step ceiling nor the model is set here any more.
+        //
+        // Both were pinned when the CLI's own limits were lower, and both had
+        // since become wrong in the same way: SIMBA_MAX_STEPS=200 was holding
+        // the agent *below* the 250 the CLI now allows, and the pinned model
+        // was overriding a default the CLI had already moved on from. Code mode
+        // runs the CLI's engine, so it takes the CLI's answers.
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    if !tavily_key.is_empty() {
-        command.env("TAVILY_API_KEY", tavily_key);
-    }
+    // No TAVILY_API_KEY: simba 1.19.0 removed web search, tool and all, so
+    // there is nothing left for a search key to reach.
 
     #[cfg(windows)]
     command.creation_flags(CREATE_NO_WINDOW);

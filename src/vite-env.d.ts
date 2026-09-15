@@ -9,4 +9,3 @@
  */
 declare const __SIMBA_CHAT_KEY__: string;
 declare const __SIMBA_CODE_KEY__: string;
-declare const __SIMBA_TAVILY_KEY__: string;

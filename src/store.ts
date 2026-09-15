@@ -42,9 +42,29 @@ export type TranscriptItem =
   | { kind: 'assistant'; id: string; text: string }
   | { kind: 'thought'; id: string; seconds: number }
   | { kind: 'note'; id: string; text: string }
+  | { kind: 'plan'; id: string; items: { text: string; done?: boolean }[] }
   | { kind: 'error'; id: string; attempted: string; failed: string; fix?: string };
 
 export type ConfirmRequest = { id: number; action: string; detail: string; risk: string };
+
+/**
+ * A list the agent is waiting on an answer for.
+ *
+ * Covers both of the engine's list prompts. `choose` is the plain one every UI
+ * has; `pick` is the richer one it uses when the UI offers it, with a row
+ * already current. They differ only in what the window can show, so they share
+ * one piece of state — and both MUST be answered, because the engine is
+ * awaiting the reply and the turn cannot move until it arrives.
+ */
+export type ChoiceRequest = {
+  id: number;
+  kind: 'choose' | 'pick';
+  prompt: string;
+  items: string[];
+  active: number;
+  hint: string;
+  allowNone: boolean;
+};
 
 let counter = 0;
 export const uid = () => `${Date.now().toString(36)}-${(counter++).toString(36)}`;
@@ -225,6 +245,17 @@ type CodeState = {
   /** Why the last turn ended early, if it did. Null means it finished. */
   stopped: string | null;
 
+  /** A list the agent is blocked on. */
+  choice: ChoiceRequest | null;
+  /**
+   * Live progress within the turn. A long build otherwise gives no sign of
+   * movement at all beyond a spinner, which is the complaint every agent UI
+   * eventually gets.
+   */
+  steps: number;
+  added: number;
+  removed: number;
+
   addProject: (path: string, name: string) => Project;
   openProject: (id: string) => void;
   renameProject: (id: string, name: string) => void;
@@ -243,6 +274,9 @@ type CodeState = {
   setReady: (v: { check: string | null; skills: SkillInfo[]; model: string }) => void;
   setContextPercent: (v: number) => void;
   setStopped: (v: string | null) => void;
+  setChoice: (v: ChoiceRequest | null) => void;
+  /** Reset at turn_start, bumped by step/diff_stat as the turn runs. */
+  setProgress: (v: { steps?: number; added?: number; removed?: number }) => void;
   setNodeVersion: (v: string | null) => void;
   current: () => Project | null;
 };
@@ -264,6 +298,10 @@ export const useCode = create<CodeState>()(
       contextPercent: 0,
       nodeVersion: 'unknown',
       stopped: null,
+      choice: null,
+      steps: 0,
+      added: 0,
+      removed: 0,
 
       addProject: (path, name) => {
         const existing = get().projects.find((p) => p.path === path);
@@ -320,6 +358,12 @@ export const useCode = create<CodeState>()(
       setReady: ({ check, skills, model }) => set({ check, skills, model, running: true }),
       setContextPercent: (contextPercent) => set({ contextPercent }),
       setStopped: (stopped) => set({ stopped }),
+      setChoice: (choice) => set({ choice }),
+      setProgress: ({ steps, added, removed }) => set((s) => ({
+        steps: steps ?? s.steps,
+        added: added ?? s.added,
+        removed: removed ?? s.removed,
+      })),
       setNodeVersion: (nodeVersion) => set({ nodeVersion }),
       current: () => get().projects.find((p) => p.id === get().currentId) ?? null,
     }),

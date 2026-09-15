@@ -1,7 +1,7 @@
 {
     "$schema":  "../node_modules/@tauri-apps/cli/config.schema.json",
     "productName":  "Simba",
-    "version":  "2.1.0",
+    "version":  "2.2.0",
     "identifier":  "com.omdixit.simba",
     "build":  {
                   "frontendDist":  "../dist",
@@ -58,7 +58,7 @@
                },
     "plugins":  {
                     "updater":  {
-                                    "pubkey":  "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFCNDJBQjY5ODM1MDJCQkYKUldTL0sxQ0RhYXRDcXdQQlFoUWtseGdhUUhIYXBGbUxuWHBKZ2NNb1pBSVdtbC9PSU9UcU8rdmcK",
+                                    "pubkey":  "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU0Mzk5RTVEMEY4NDVBOEEKUldTS1dvUVBYWjQ1NUpmaEhCZGF3amg5Z2tPME5WNy9FTE1yNlBKcmJFSG4xSFR0QitnY2Q5WGIK",
                                     "endpoints":  [
                                                       "https://github.com/sppideey/simba-desktop/releases/latest/download/latest.json"
                                                   ],

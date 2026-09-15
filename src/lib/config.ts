@@ -6,7 +6,7 @@
  * embedded in the binary and never appear anywhere in the interface.
  */
 
-import { CHAT_KEY_RAW, CODE_KEY_RAW, TAVILY_KEY_RAW } from './keys.generated';
+import { CHAT_KEY_RAW, CODE_KEY_RAW } from './keys.generated';
 
 /* ---------------------------------------------------------------- chat */
 
@@ -43,7 +43,8 @@ export const IMAGE_MAX_EDGE = 1024;
 /** Code credentials. Handed to the agent process through its environment
     at spawn time only, so they cannot leak into a transcript. */
 export const CODE_KEY: string = CODE_KEY_RAW;
-export const TAVILY_KEY: string = TAVILY_KEY_RAW;
+
+// No search key: simba 1.19.0 removed web search, so nothing consumes one.
 
 export type ModelInfo = { id: string; label: string; star?: boolean; context: number };
 
